@@ -72,7 +72,7 @@
  */
 
 /* Posiciones de memoria para periféricos del AHB2 */
-#define USB_OTG_F5_BASE_ADDR     (AHB2_BASE_ADDR + 0x3800U)
+#define USB_OTG_F5_BASE_ADDR     (AHB2_BASE_ADDR + 0x0000U)
 
 /*Posiciones de memoria para periféricos del AHB1
  * Observar que NO está completa*/

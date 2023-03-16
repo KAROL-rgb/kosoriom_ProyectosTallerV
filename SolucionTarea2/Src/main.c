@@ -15,10 +15,13 @@
  *
  ******************************************************************************
  */
+/*
+ * Solución primer punto:
+ *
+ * a) El error que se encuentra en la función GPIO_ReadPin() es que no se está limpiando
+ */
 
 #include <stdint.h>
-#include <stm32f4xx.h>
-
 
 /**
  * Función principal del programa
