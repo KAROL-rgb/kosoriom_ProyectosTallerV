@@ -26,39 +26,39 @@ void GPIO_Config (GPIO_Handler_t *pGPIOHandler){
 
 	// 1) Activar  el periférico
 	// Verificamos para GPIOA
-	if (pGPIOHandler ->pGPIOx == GPIOA){
+	if (pGPIOHandler->pGPIOx == GPIOA){
 		// Escribimos 1 (SET) en la posición correspondiente al GPIOA
-		RCC ->AHB1ENR |= (SET << RCC_AHB1ENR_GPIOA_EN);
+		RCC->AHB1ENR |=(RCC_AHB1ENR_GPIOAEN);
 
 	}
 	// Verificamos para GPIOB
 	else if(pGPIOHandler ->pGPIOx == GPIOB){
 		// Escribimos 1 (SET) en la posición correspondiente al GPIOB
-		RCC ->AHB1ENR |= (SET << RCC_AHB1ENR_GPIOB_EN);
+		RCC->AHB1ENR |= (RCC_AHB1ENR_GPIOBEN);
 
 	}
 	// Verificamos para GPIOC
 	else if(pGPIOHandler->pGPIOx == GPIOC){
 		//Escribimos 1 (SET) en la posición correspondiente al GPIOC
-		RCC->AHB1ENR |= (SET <<RCC_AHB1ENR_GPIOC_EN);
+		RCC->AHB1ENR |= (RCC_AHB1ENR_GPIOCEN);
 
 	}
 	// Verificamos para GPIOD
 	else if(pGPIOHandler->pGPIOx == GPIOD){
 		// Escribimos 1 (SET) en la posición correspondiente al GPIOD
-		RCC->AHB1ENR |= (SET << RCC_AHB1ENR_GPIOD_EN);
+		RCC->AHB1ENR |= (RCC_AHB1ENR_GPIODEN);
 	}
 	// Verificamos para GPIOE
 	else if (pGPIOHandler ->pGPIOx == GPIOE){
 		// Escribimos 1 (SET) en la posición correspondiente al GPIOE
-		RCC -> AHB1ENR |= (SET << RCC_AHB1ENR_GPIOE_EN);
+		RCC-> AHB1ENR |= (RCC_AHB1ENR_GPIOEEN);
 	}
 	// Verificamos para GPIOH
 	else if(pGPIOHandler->pGPIOx == GPIOH){
 		// Escribimos 1 (SET) en la posición correspondiente al GPIOH
-		RCC->AHB1ENR |= (SET << RCC_AHB1ENR_GPIOH_EN);
+		RCC->AHB1ENR |= (RCC_AHB1ENR_GPIOHEN);
 	}
-	// Después de activado, podemos comenzar a configurar.
+	// Después de activado, podemos comenzaar a configurar.
 
 	// 2) Configurando el registro GPIOx_MODER
 	// Acá estamos leyendo la config, moviendo "PinNumber" veces hacia la izquierda ese valor (shift left)
@@ -83,16 +83,16 @@ void GPIO_Config (GPIO_Handler_t *pGPIOHandler){
 	pGPIOHandler ->pGPIOx ->OTYPER |= auxConfig;
 
 	// 4) Configurando ahora la velocidad
-	auxConfig = (pGPIOHandler ->GPIO_PinConfig.GPIO_PinSpeed << 2 * pGPIOHandler ->GPIO_PinConfig.GPIO_PinNumber);
+	auxConfig = (pGPIOHandler ->GPIO_PinConfig.GPIO_PinSpeed << 2*pGPIOHandler ->GPIO_PinConfig.GPIO_PinNumber);
 
 	// Limpiando la posición antes de cargar la nueva configuración
-	pGPIOHandler->pGPIOx->OSPEEDR &= ~(0b11 << 2 * pGPIOHandler->GPIO_PinConfig.GPIO_PinNumber);
+	pGPIOHandler->pGPIOx->OSPEEDR &= ~(0b11 << 2* pGPIOHandler->GPIO_PinConfig.GPIO_PinNumber);
 
 	// Cargamos el resultado sobre el resgistro adecuado
 	pGPIOHandler ->pGPIOx->OSPEEDR |= auxConfig;
 
 	// 5) Configurando si se desea pull-up, pull-down o flotante
-	auxConfig = (pGPIOHandler->GPIO_PinConfig.GPIO_PinPuPdControl << 2 * pGPIOHandler ->GPIO_PinConfig.GPIO_PinNumber);
+	auxConfig = (pGPIOHandler->GPIO_PinConfig.GPIO_PinPuPdControl << 2*pGPIOHandler ->GPIO_PinConfig.GPIO_PinNumber);
 
 	// Limpiando la posición antes de cargar la nueva configuración
 	pGPIOHandler ->pGPIOx->PUPDR &= ~ (0b11 << 2 * pGPIOHandler->GPIO_PinConfig.GPIO_PinNumber);
@@ -108,10 +108,10 @@ void GPIO_Config (GPIO_Handler_t *pGPIOHandler){
 			auxPosition = 4 * pGPIOHandler ->GPIO_PinConfig.GPIO_PinNumber;
 
 		// Limpiamos primero la posición del registro que deseamos escribir a continuación
-		pGPIOHandler->pGPIOx->AFRL &= ~(0b1111 << auxPosition);
+		pGPIOHandler->pGPIOx->AFR[0] &= ~(0b1111 << auxPosition);
 
 		//Y escribimos el valor configurado en la posición seleccionada
-		pGPIOHandler ->pGPIOx->AFRL |= (pGPIOHandler->GPIO_PinConfig.GPIO_PinAltFunMode << auxPosition);
+		pGPIOHandler ->pGPIOx->AFR[0] |= (pGPIOHandler->GPIO_PinConfig.GPIO_PinAltFunMode << auxPosition);
 
 		}
 		else{
@@ -119,10 +119,10 @@ void GPIO_Config (GPIO_Handler_t *pGPIOHandler){
 			auxPosition = 4 * (pGPIOHandler->GPIO_PinConfig.GPIO_PinNumber -8);
 
 			// Limpiamos primero la posición del registro que deseamos escribir a continuación
-			pGPIOHandler->pGPIOx->AFRH &= ~(0b111 << auxPosition);
+			pGPIOHandler->pGPIOx->AFR[1] &= ~(0b111 << auxPosition);
 
 			// Y escribimos eñ valor configurado en la posición seleccionada
-			pGPIOHandler->pGPIOx->AFRH |= (pGPIOHandler->GPIO_PinConfig.GPIO_PinAltFunMode << auxPosition);
+			pGPIOHandler->pGPIOx->AFR[1] |= (pGPIOHandler->GPIO_PinConfig.GPIO_PinAltFunMode << auxPosition);
 		}
 	}
 }// Fin del GPIO_config
@@ -152,32 +152,10 @@ uint32_t GPIO_ReadPin(GPIO_Handler_t *pPinHandler){
 	uint32_t pinValue = 0;
 
 	// Cargamos el valor del registro IDR, desplazado a derecha tantas veces como la ubicación
-	// del pin específico.
+	// del pin específico
 	pinValue = (pPinHandler->pGPIOx->IDR >> pPinHandler ->GPIO_PinConfig.GPIO_PinNumber);
 	pinValue &= 0b1;
 
+
 	return pinValue;
 }
-// Segundo punto
-void GPIOxTooglePin(GPIO_Handler_t *pPinHandler){
-
-	pPinHandler->pGPIOx->ODR ^= (SET << pPinHandler->GPIO_PinConfig.GPIO_PinNumber);
-
-	for(uint32_t cont=0; cont<=1000000; cont++){
-		NOP();
-
-
-	}
-
-}
-
-// Tercer punto
-
-
-
-
-
-
-
-
-
