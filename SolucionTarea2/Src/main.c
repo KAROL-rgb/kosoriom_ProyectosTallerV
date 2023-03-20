@@ -197,9 +197,9 @@ int main(void){
 			k = con >> c;                                    // Shift de c posiciones y el for los resta
 			if(c == 6){                                      // Comenzamos el condicional desde la posición menos significativa, PC9
 
-				/*El shift se está guardando en la variable k, de esta manera se está haciendo el shift c cantidad de veces hacia la izquierda al contador,
-				el cual va a ser un número de 7 bits siempre, con el resultado del shif se realiza una operación AND con el número 1, es decir, se evalúa
-				esa primera posición. Si el resultado es 1 el AND arroja un True (se enciende el LED) de lo contrario será un False (LED apagado).*/
+/*El shift se está guardando en la variable k, de esta manera se está haciendo el shift c cantidad de veces hacia la izquierda al contador,
+el cual va a ser un número de 7 bits siempre, con el resultado del shif se realiza una operación AND con el número 1, es decir, se evalúa
+esa primera posición. Si el resultado es 1 el AND arroja un True (se enciende el LED) de lo contrario será un False (LED apagado).*/
 
 				if (k&1){
 					GPIO_WritePin(&handlerPC9, SET);
@@ -251,9 +251,11 @@ int main(void){
 			}
 		}
 
-		if(con > 60){con = 1;                      // Condicional de restricción, no puede ser más de 60 ni menos de 1
+		if(con > 60){
+			con = 1;                      // Condicional de restricción, no puede ser más de 60 ni menos de 1
 		}
-		if(con < 1){con = 60;
+		if(con < 1){
+			con = 60;
 		}
 		delay();
 
