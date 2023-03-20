@@ -158,12 +158,13 @@ uint32_t GPIO_ReadPin(GPIO_Handler_t *pPinHandler){
 
 	return pinValue;
 }
-// Segundo punto
+//Segundo punto: La función TooglePin permite cambiar el estado de un pin de manera automática.
+
 void GPIOxTooglePin(GPIO_Handler_t *pPinHandler){
 
 	pPinHandler->pGPIOx->ODR ^= (SET << pPinHandler->GPIO_PinConfig.GPIO_PinNumber);
-
-	for(uint32_t cont=0; cont<=1000000; cont++){
+	// El siguiente for fue realizado para probar la función TooglePin
+	for(uint32_t cont=0; cont<=1000; cont++){
 		NOP();
 
 
