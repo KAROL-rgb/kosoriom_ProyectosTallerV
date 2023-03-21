@@ -13,7 +13,7 @@
 
 
 // Incluyendo este archivo estamos incluyendo también el correspondiente al GPIOx
-#include <stm32f411xe.h>
+#include <stm32f4xx.h>
 #include <stdint.h>
 
 /* Valores estándar para las configuraciones */
