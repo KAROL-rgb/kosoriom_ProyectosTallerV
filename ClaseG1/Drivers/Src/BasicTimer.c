@@ -37,9 +37,14 @@ void BasicTimer_Config(BasicTimer_Handler_t *ptrBTimerHandler){
 	/* 1. Activar la señal de reloj del periférico requerido */
 	if(ptrBTimerHandler->ptrTIMx == TIM2){
 		// Registro del RCC que nos activa la señal de reloj para el TIM2
+		RCC->APB1ENR &= ~RCC_APB1ENR_TIM2EN;      // Limpio
+		RCC->APB1ENR |= RCC_APB1ENR_TIM2EN;       // Configuro
 	}
 	else if(ptrBTimerHandler->ptrTIMx == TIM3){
-		// Registro del RCC que nos activa la señal de reloj para el TIM2
+		// Registro del RCC que nos activa la señal de reloj para el TIM3
+		RCC->APB1ENR &= ~RCC_APB1ENR_TIM3EN;     // Limpio
+		RCC->APB1ENR |= RCC_APB1ENR_TIM3EN;      // Configuro
+
 	}
 	else{
 		__NOP();
@@ -48,31 +53,33 @@ void BasicTimer_Config(BasicTimer_Handler_t *ptrBTimerHandler){
 	/* 2. Configuramos el Pre-scaler
 	 * Recordar que el prescaler nos indica la velocidad a la que se incrementa el counter, de forma que
 	 * periodo_incremento * veces_incremento_counter = periodo_update
+	 *
 	 * Modificar el valor del registro PSC en el TIM utilizado
 	 */
-	/* Escriba codigo aca */
+	ptrBTimerHandler->ptrTIMx->PSC = ptrBTimerHandler->TIMx_Config.TIMx_speed;
 
 	/* 3. Configuramos la dirección del counter (up/down)*/
 	if(ptrBTimerHandler->TIMx_Config.TIMx_mode == BTIMER_MODE_UP){
 
 		/* 3a. Estamos en UP_Mode, el limite se carga en ARR y se comienza en 0 */
 		// Configurar el registro que nos controla el modo up or down
-		/* Escriba codigo aca */
+
+		ptrBTimerHandler->ptrTIMx->CR1 &= ~TIM_CR1_DIR;
 
 		/* 3b. Configuramos el Auto-reload. Este es el "limite" hasta donde el CNT va a contar */
 		ptrBTimerHandler->ptrTIMx->ARR = ptrBTimerHandler->TIMx_Config.TIMx_period - 1;
 
 		/* 3c. Reiniciamos el registro counter*/
-		/* Escriba codigo aca */
+		ptrBTimerHandler->ptrTIMx->CNT = 0;
 
 	}else{
 		/* 3a. Estamos en DOWN_Mode, el limite se carga en ARR (0) y se comienza en un valor alto
 		 * Trabaja contando en direccion descendente*/
-		/* Escriba codigo aca */
+		ptrBTimerHandler->ptrTIMx->CR1 |= TIM_CR1_DIR;
 
 		/* 3b. Configuramos el Auto-reload. Este es el "limite" hasta donde el CNT va a contar
 		 * En modo descendente, con numero positivos, cual es el minimi valor al que ARR puede llegar*/
-		/* Escriba codigo aca */
+		ptrBTimerHandler->ptrTIMx->ARR = 0;
 
 		/* 3c. Reiniciamos el registro counter
 		 * Este es el valor con el que el counter comienza */
@@ -84,7 +91,7 @@ void BasicTimer_Config(BasicTimer_Handler_t *ptrBTimerHandler){
 
 	/* 5. Activamos la interrupción debida al Timerx Utilizado
 	 * Modificar el registro encargado de activar la interrupcion generada por el TIMx*/
-	/* Escriba codigo aca */
+	ptrBTimerHandler->ptrTIMx->DIER |= SET;
 
 	/* 6. Activamos el canal del sistema NVIC para que lea la interrupción*/
 	if(ptrBTimerHandler->ptrTIMx == TIM2){
@@ -93,7 +100,7 @@ void BasicTimer_Config(BasicTimer_Handler_t *ptrBTimerHandler){
 	}
 	else if(ptrBTimerHandler->ptrTIMx == TIM3){
 		// Activando en NVIC para la interrupción del TIM3
-		/* Escriba codigo aca */
+		NVIC_EnableIRQ(TIM3_IRQn);
 	}
 	else{
 		__NOP();
@@ -103,7 +110,7 @@ void BasicTimer_Config(BasicTimer_Handler_t *ptrBTimerHandler){
 	__enable_irq();
 }
 
-__attribute__((weak)) void BasicTimerX_Callback(void){
+__attribute__((weak)) void BasicTimer2_Callback(void){
 	  /* NOTE : This function should not be modified, when the callback is needed,
 	            the BasicTimerX_Callback could be implemented in the main file
 	   */
@@ -117,9 +124,9 @@ __attribute__((weak)) void BasicTimerX_Callback(void){
  * el sistema inmediatamente salta a este lugar en la memoria*/
 void TIM2_IRQHandler(void){
 	/* Limpiamos la bandera que indica que la interrupción se ha generado */
-	ptrTimerUsed->SR &= ~TIM_SR_UIF;
+	TIM2->SR &= ~TIM_SR_UIF;
 
 	/* LLamamos a la función que se debe encargar de hacer algo con esta interrupción*/
-	BasicTimer_Callback();
+	BasicTimer2_Callback();
 
 }
