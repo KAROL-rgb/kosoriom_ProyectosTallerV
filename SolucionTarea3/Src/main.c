@@ -314,62 +314,82 @@ int main(void){
 		}
 		if (estado%2){
 			CLK = GPIO_ReadPin(&handlerCLK);
-					DT = GPIO_ReadPin(&handlerDT);
+			DT = GPIO_ReadPin(&handlerDT);
 			if((counterExti7==1) && (DT==0)){
-						if(contador<99){
-							contador++;
-						}
-						counterExti7=0;
+				if(contador<99){
+					contador++;
+				}
+				counterExti7=0;
 
-					}else if((counterExti7==1) && (DT==1)){
-						if(contador<=0){
+			}else if((counterExti7==1) && (DT==1)){
+				if(contador<=0){
+					contador=0;
+				}else{
+					contador--;
+				}
 
-							contador=0;
-						}else{
-							contador--;
-						}
-
-						counterExti7=0;
-					}
+				counterExti7=0;
+			}
 			TR1=GPIO_ReadPin(&handlerTransistor1);
-						TR2=GPIO_ReadPin(&handlerTransistor2);
-						if(TR1==0){
-							GPIO_WritePin(&handlerTransistor2, 1);
-							estadoTr1=TR1;
-							display7(contador/10);
-						}else if (TR1==1){
-							GPIO_WritePin(&handlerTransistor2, 0);
-							estadoTr2 = (~estadoTr1);
-							display7(contador%10);
-						}else{
-							__NOP();
-						}
-
+			TR2=GPIO_ReadPin(&handlerTransistor2);
+			if(TR1==0){
+				GPIO_WritePin(&handlerTransistor2, 1);
+				estadoTr1=TR1;
+				display7(contador/10);
+			}else if (TR1==1){
+				GPIO_WritePin(&handlerTransistor2, 0);
+				estadoTr2 = (~estadoTr1);
+				display7(contador%10);
+			}else{
+				__NOP();
+			}
 		}
 		else{
 			CLK = GPIO_ReadPin(&handlerCLK);
-					DT = GPIO_ReadPin(&handlerDT);
+			DT = GPIO_ReadPin(&handlerDT);
 			if((counterExti7==1) && (DT==0)){
-						if(posicion<=11){
-							posicion++;
-						}
-						counterExti7=0;
-						}else if((counterExti7==1) && (DT==1)){
-							if(posicion>0){
-								posicion--;
-							}
-							if(posicion==0){
-								posicion=11;
-							}
-							counterExti7=0;
-						}
-				if(posicion>11){
-					posicion=0;
+				if(posicion<=11){
+					posicion++;
 				}
-				if(posicion<0){
+				counterExti7=0;
+			}else if((counterExti7==1) && (DT==1)){
+				if(posicion==0){
 					posicion=11;
+				}else{
+					posicion--;
 				}
-				culebrita(posicion);
+				counterExti7=0;
+			}
+			if(posicion>11){
+				posicion=0;
+			}
+			if(posicion<0){
+				posicion=11;
+			}
+			TR1=GPIO_ReadPin(&handlerTransistor1);
+			TR2=GPIO_ReadPin(&handlerTransistor2);
+
+			if(((posicion>=1) && (posicion<=4)) || ((posicion>=7) && (posicion<=8))){
+				if (TR1==1){
+					GPIO_WritePin(&handlerTransistor1, 0);
+					GPIO_WritePin(&handlerTransistor2, 1);
+					estadoTr2 = TR1;
+					culebrita(posicion);
+				}
+			}
+			if((posicion==0) || ((posicion>=5) && (posicion<=6)) || ((posicion>=9) && (posicion<=11))){
+				if(TR1==0){
+					GPIO_WritePin(&handlerTransistor1, 1);
+					GPIO_WritePin(&handlerTransistor2, 0);
+					estadoTr1=(~estadoTr2);
+					culebrita(posicion);
+				}
+
+			}
+			else{
+				__NOP();
+			}
+
 		}
 //		if((counterButton==1) && (SW==1)){
 //			button = SW;
@@ -540,7 +560,7 @@ void init_Hardware(void){
 	handlerTransistor.ptrTIMx = TIM3;
 	handlerTransistor.TIMx_Config.TIMx_mode		= BTIMER_MODE_UP;
 	handlerTransistor.TIMx_Config.TIMx_speed		= BTIMER_SPEED_1ms;
-	handlerTransistor.TIMx_Config.TIMx_period		= 13; // Interrupcion cada 300 ms
+	handlerTransistor.TIMx_Config.TIMx_period		= 12; // Interrupcion cada 300 ms
 	handlerTransistor.TIMx_Config.TIMx_interruptEnable = ENABLE;
 	BasicTimer_Config(&handlerTransistor);
 
