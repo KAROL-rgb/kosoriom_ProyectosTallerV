@@ -1,4 +1,4 @@
-/**
+ /**
  ******************************************************************************
  * @file           : main.c
  * @author         : kosoriom
@@ -286,16 +286,10 @@ void culebrita(uint8_t numero){
 /* Prototipos de funciones del main */
 void init_Hardware(void);
 void callback_extInt7(void);
-void callback_extInt12(void);
+void callback_extInt9(void);
 void BasicTimer2_Callback(void);
 void BasicTimer3_Callback(void);
 
-/* Función de retardo para el cambio de estado (de cotador a culebrita) */
-void delay()
-{
-  unsigned int i;
-  for(i=0; i<600000; i++);
-}
 
 int main(void){
 
@@ -307,11 +301,11 @@ int main(void){
 
 	while(1){
 
-		SW = GPIO_ReadPin(&handlerSW);           // Lectura del botón
-		if (SW == 0){                            // Condición para cuando el botón está presionado (valor de 0)
-			delay();                             // Para controlar que se cuente alrededor de 1s
-			estado++;                            // Instrucción para que el estado aumente cuando se cumpla lo anterior
+		if(counterButton==1){
+			estado++;
 		}
+		counterButton = 0;
+
 		if ((estado%2) == 1){                    // Se verifica que si el módulo es 1, es un número impar, por ende entra a modo contador
 			CLK = GPIO_ReadPin(&handlerCLK);
 			DT = GPIO_ReadPin(&handlerDT);
@@ -397,6 +391,7 @@ int main(void){
 				__NOP();
 			}
 
+
 		}
 
 	}
@@ -435,7 +430,7 @@ void init_Hardware(void){
 
 	/* Configuración del botón, Pin PA7 (SW) */
 	handlerSW.pGPIOx = GPIOA;
-	handlerSW.GPIO_PinConfig.GPIO_PinNumber = PIN_7;
+	handlerSW.GPIO_PinConfig.GPIO_PinNumber = PIN_9;
 	handlerSW.GPIO_PinConfig.GPIO_PinMode = GPIO_MODE_IN;
 	handlerSW.GPIO_PinConfig.GPIO_PinPuPdControl = GPIO_PUPDR_NOTHING;
 	GPIO_Config(&handlerSW);
@@ -545,7 +540,7 @@ void init_Hardware(void){
 	handlerTransistor.ptrTIMx = TIM3;
 	handlerTransistor.TIMx_Config.TIMx_mode		= BTIMER_MODE_UP;
 	handlerTransistor.TIMx_Config.TIMx_speed		= BTIMER_SPEED_1ms;
-	handlerTransistor.TIMx_Config.TIMx_period		= 12;                // Interrupcion cada 12 ms
+	handlerTransistor.TIMx_Config.TIMx_period		= 15;                // Interrupcion cada 12 ms
 	handlerTransistor.TIMx_Config.TIMx_interruptEnable = ENABLE;
 	BasicTimer_Config(&handlerTransistor);
 
@@ -563,12 +558,10 @@ void init_Hardware(void){
 
 void callback_extInt7(void){                      // Exti del Clock
 	counterExti = 1;                              // Flanco de subida
-
 }
 
-void callback_extInt12(void){                     // Exti del botón
-	counterButton = 1;	                          // Flanco de subida
-
+void callback_extInt9(void){                     // Exti del botón
+	counterButton |= 1;	                          // Flanco de subida
 }
 
 
