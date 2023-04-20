@@ -301,7 +301,7 @@ int main(void){
 
 	while(1){
 
-		if(counterButton==1){
+		if(counterButton==1){                    // Interrupción externa del exti del botón SW
 			estado++;
 		}
 		counterButton = 0;
@@ -540,7 +540,7 @@ void init_Hardware(void){
 	handlerTransistor.ptrTIMx = TIM3;
 	handlerTransistor.TIMx_Config.TIMx_mode		= BTIMER_MODE_UP;
 	handlerTransistor.TIMx_Config.TIMx_speed		= BTIMER_SPEED_1ms;
-	handlerTransistor.TIMx_Config.TIMx_period		= 15;                // Interrupcion cada 12 ms
+	handlerTransistor.TIMx_Config.TIMx_period		= 10;                // Interrupcion cada 10 ms
 	handlerTransistor.TIMx_Config.TIMx_interruptEnable = ENABLE;
 	BasicTimer_Config(&handlerTransistor);
 
