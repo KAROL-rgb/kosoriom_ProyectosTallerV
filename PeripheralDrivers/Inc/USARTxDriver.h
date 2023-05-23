@@ -15,6 +15,11 @@
 #define USART_MODE_RXTX		2
 #define USART_MODE_DISABLE	3
 
+#define USART_RX_INTERRUP_ENABLE  1
+#define USART_RX_INTERRUP_DISABLE 0
+#define USART_TX_INTERRUP_ENABLE  1
+#define USART_TX_INTERRUP_DISABLE 0
+
 #define USART_BAUDRATE_9600		0
 #define USART_BAUDRATE_19200	1
 #define USART_BAUDRATE_115200	2
@@ -44,6 +49,9 @@ typedef struct
 	uint8_t USART_datasize;
 	uint8_t USART_parity;
 	uint8_t USART_stopbits;
+	uint8_t USART_enableIntRX;
+	uint8_t USART_enableIntTX;
+
 }USART_Config_t;
 
 /*
@@ -65,12 +73,14 @@ typedef struct
 	uint8_t			dataOutputSize;
 }USART_Handler_t;
 
-
-
 /* Definicion de los prototipos para las funciones del USART */
 void USART_Config(USART_Handler_t *ptrUsartHandler);
 int writeChar(USART_Handler_t *ptrUsartHandler, int dataToSend );
-
+void writeMsg(USART_Handler_t *ptrUsartHandler, char *msgToSend);
+uint8_t getRXData(void);
+void usart1Rx_Callback(void);
+void usart2Rx_Callback(void);
+void usart6Rx_Callback(void);
 
 
 
