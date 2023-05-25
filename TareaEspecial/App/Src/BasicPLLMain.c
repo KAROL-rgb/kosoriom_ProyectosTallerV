@@ -1,13 +1,9 @@
-/*
- * PruebaPLL.c
- *
- *  Created on: 22/05/2023
- *      Author: karol
- */
+/* @file           : BasicProject_Main.c
+ * @author         : Karol Osorio Monsalve - kosoriom@unal.edu.co
+ * @brief          : Solución básica de un proyecto con librerías externas */
+
 
 #include <stdint.h>
-#include <stdio.h>
-#include <stdbool.h>
 
 #include "stm32f4xx.h"
 
@@ -30,7 +26,7 @@ void initSystem(void);
 int main(void){
 
 	initSystem();
-	configPLL();
+	PLL_Config();
 
 	while(1){
 
@@ -52,7 +48,7 @@ void initSystem(void){
 	// Configurando el Timer2 para que funcione con el blinky
 	handlerBlinkyTimer.ptrTIMx           = TIM2;
 	handlerBlinkyTimer.TIMx_Config.TIMx_mode = BTIMER_MODE_UP;
-	handlerBlinkyTimer.TIMx_Config.TIMx_speed  = BTIMER_SPEED_1ms;
+	handlerBlinkyTimer.TIMx_Config.TIMx_speed  = BTIMER_80MHz_SPEED_1us;
 	handlerBlinkyTimer.TIMx_Config.TIMx_period = 2500;
 	handlerBlinkyTimer.TIMx_Config.TIMx_interruptEnable = ENABLE;
 	BasicTimer_Config(&handlerBlinkyTimer);
@@ -73,4 +69,5 @@ void BasicTimer2_Callback(void){
 
 	GPIOxTooglePin(&handlerBlinkyPin);
 }
+
 

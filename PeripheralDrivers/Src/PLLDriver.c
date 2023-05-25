@@ -8,35 +8,48 @@
 #include <stm32f4xx.h>
 #include "PLLDriver.h"
 
-void configPLL(void){
+uint8_t var = 0;
+
+void PLL_Config(void){
+
+	RCC->CR &= ~RCC_CR_PLLON;
+	/* Se configura el voltaje PWR, dependiendo de la frecuencia con la que trabaje */
+
+	RCC->APB1ENR |= RCC_APB1ENR_PWREN;
+
+	PWR->CR &=~(PWR_CR_VOS);
+	PWR->CR |= PWR_CR_VOS;
 
 	/* 1. Programe el nuevo número de estados de espera en los bits LATENCY en FLASH_ACR
-	 * registro  */
+			 * registro  */
 
+	FLASH->ACR |= FLASH_ACR_ICEN | FLASH_ACR_DCEN | FLASH_ACR_PRFTEN;
 	FLASH->ACR &= ~(FLASH_ACR_LATENCY);
 	FLASH->ACR |= (FLASH_ACR_LATENCY_2WS);
 
-	/* 3. Modifique la fuente de reloj de la CPU escribiendo los bits SW en el registro RCC_CFGR */
 
-	RCC->CFGR |= RCC_CFGR_SW_PLL;
 
 	/* Se configura el valor que se quiere obtener, en este caso 80MHz
 	 * f(VCO clock)  = 16MHz * (PLLN/PLLM)
 	 * Se toma el factor de multiplicación PLLN = 80MHz  */
 
 	RCC->PLLCFGR &= ~(RCC_PLLCFGR_PLLN);
-	RCC->PLLCFGR |= (0x50 << RCC_PLLCFGR_PLLN_Pos);
+	RCC->PLLCFGR |= (85 << RCC_PLLCFGR_PLLN_Pos);
 
 	/* Luego se configura el factor de división PLLM = 2MHz  */
 
 	RCC->PLLCFGR &= ~(RCC_PLLCFGR_PLLM);
-	RCC->PLLCFGR |= (RCC_PLLCFGR_PLLM_2);
+	RCC->PLLCFGR |= (2 << RCC_PLLCFGR_PLLM_Pos);
 
 	/* f(Clock output) = f(VCO clock) / PLLP
 	 * La frecuencia deseada es 80MHz, entonces el PLLP = 8 */
 
 	RCC->PLLCFGR &= ~(RCC_PLLCFGR_PLLP);
-	RCC->PLLCFGR |= (0x8 << RCC_PLLCFGR_PLLP_Pos);
+	RCC->PLLCFGR |= (3 << RCC_PLLCFGR_PLLP_Pos);
+
+	RCC->CFGR &= ~ (RCC_CFGR_SW);
+	RCC->CFGR &= RCC_CFGR_SW_1;
+
 
 	/* 4. si es necesario, modifique el preescalador del reloj de la CPU escribiendo los bits HPRE en RCC_CFGR */
 	RCC->CFGR &= ~(RCC_CFGR_HPRE);
@@ -64,6 +77,8 @@ void configPLL(void){
 	RCC->CFGR |= (RCC_CFGR_MCO1PRE_1);
 	RCC->CFGR |= (RCC_CFGR_MCO1PRE_2);
 
+
+
 	/* Finalmente se activa el PLL */
 	RCC->CR |= RCC_CR_PLLON;
 
@@ -71,9 +86,24 @@ void configPLL(void){
 		__NOP();
 	}
 
+	/* 3. Modifique la fuente de reloj de la CPU escribiendo los bits SW en el registro RCC_CFGR */
+
+	RCC->CFGR |= RCC_CFGR_SW_PLL;
+
 
 
 	}
+
+/* La siguiente función entrega el estado de la configuración del equipo para cuando está el PLL en ON
+ * se entregará una frecuencia de 80MHz o de lo contrario será 16MHz */
+
+uint32_t getConfigPLL(void){
+
+	var = (RCC->CR & RCC_CR_PLLON) >> (RCC_CR_PLLON_Pos);
+
+	return var;
+
+}
 
 
 

@@ -7,8 +7,10 @@
 
 #include <stm32f4xx.h>
 #include "USARTxDriver.h"
+#include "PLLDriver.h"
 
 uint8_t auxRxData = 0;
+uint8_t auxTxData = 0;
 /**
  * Configurando el puerto Serial...
  * Recordar que siempre se debe comenzar con activar la señal de reloj
@@ -35,7 +37,7 @@ void USART_Config(USART_Handler_t *ptrUsartHandler){
 		RCC->APB1ENR |= RCC_APB1ENR_USART2EN;
 	}
 
-    /* 1.3 Configuramos el USART2 */
+    /* 1.3 Configuramos el USART6 */
 	else if(ptrUsartHandler->ptrUSARTx == USART6){
 		// Registro del RCC que nos activa la señal del reloj para el USART6
 		RCC->APB2ENR &= ~RCC_APB2ENR_USART6EN;
@@ -125,33 +127,60 @@ void USART_Config(USART_Handler_t *ptrUsartHandler){
 		break;
 	}
 	}
+	// 2.5 COnfiguración del Baudrate para Frec = 80MHz;
+	if(getConfigPLL()== FRECUENCY_16MHz){
+		if(ptrUsartHandler->USART_Config.USART_baudrate == USART_BAUDRATE_9600){
+			// El valor a cargar es 520.8333-> Mantiza = 520 = 0x208;
+			// Fracción = 0.833 * 16 = 13 = 0xD
+			// El valor a cargar es 0x208D
+			ptrUsartHandler->ptrUSARTx->BRR = 0x208D;
+		}
+		else if(ptrUsartHandler->USART_Config.USART_baudrate == USART_BAUDRATE_19200){
+			// El valor a cargar es 260.417-> Mantiza = 260 = 0x104;
+			// Fracción = 0.417 * 16 = 7 = 0x7
+			// El valor a cargar es 0x1047
+			ptrUsartHandler->ptrUSARTx->BRR = 0x1047;
+		}
+		else if(ptrUsartHandler->USART_Config.USART_baudrate == USART_BAUDRATE_115200){
+			// El valor a cargar es 43.4028-> Mantiza = 43 = 0x2B;
+			// Fracción = 0.4028 * 16 = 7 = 0x7
+			// El valor a cargar es 0x2B7
+			ptrUsartHandler->ptrUSARTx->BRR = 0x2B7;
+		}
 
-	// 2.5 Configuracion del Baudrate (SFR USART_BRR)
+	}
+
+	// 2.6 Configuracion del Baudrate (SFR USART_BRR)
 	// Ver tabla de valores (Tabla 73), Frec = 16MHz, overr = 0;
-	if(ptrUsartHandler->USART_Config.USART_baudrate == USART_BAUDRATE_9600){
-		// El valor a cargar es 104.1875 -> Mantiza = 104,fraction = 0.1875
-		// Mantiza = 104 = 0x68, fraction = 16 * 0.1875 = 3
-		// Valor a cargar 0x0683
-		// Configurando el Baudrate generator para una velocidad de 9600bps
-		ptrUsartHandler->ptrUSARTx->BRR = 0x0683;
+
+	else if (getConfigPLL()== FRECUENCY_80MHz){
+
+		if(ptrUsartHandler->USART_Config.USART_baudrate == USART_BAUDRATE_9600){
+			// El valor a cargar es 104.1875 -> Mantiza = 104,fraction = 0.1875
+			// Mantiza = 104 = 0x68, fraction = 16 * 0.1875 = 3
+			// Valor a cargar 0x0683
+			// Configurando el Baudrate generator para una velocidad de 9600bps
+			ptrUsartHandler->ptrUSARTx->BRR = 0x0683;
+		}
+
+		else if (ptrUsartHandler->USART_Config.USART_baudrate == USART_BAUDRATE_19200) {
+			// El valor a cargar es 52.0625 -> Mantiza = 52,fraction = 0.0625
+			// Mantiza = 52 = 0x34, fraction = 16 * 0.1875 = 1
+			// Escriba acá su código y los comentarios que faltan
+			ptrUsartHandler->ptrUSARTx->BRR = 0x0341;
+		}
+
+		else if(ptrUsartHandler->USART_Config.USART_baudrate == USART_BAUDRATE_115200){
+			// Escriba acá su código y los comentarios que faltan
+			// valor a cargar es de 8.6875
+			//Mantiza = 8 , fraction = 16* 0.6875 = 11 en hexadecimal es B
+			//Valor a cargar 0x811
+			ptrUsartHandler->ptrUSARTx->BRR = 0x8B;
+		}
+
 	}
 
-	else if (ptrUsartHandler->USART_Config.USART_baudrate == USART_BAUDRATE_19200) {
-		// El valor a cargar es 52.0625 -> Mantiza = 52,fraction = 0.0625
-		// Mantiza = 52 = 0x34, fraction = 16 * 0.1875 = 1
-		// Escriba acá su código y los comentarios que faltan
-		ptrUsartHandler->ptrUSARTx->BRR = 0x0341;
-	}
-
-	else if(ptrUsartHandler->USART_Config.USART_baudrate == USART_BAUDRATE_115200){
-		// Escriba acá su código y los comentarios que faltan
-		// valor a cargar es de 8.6875
-		//Mantiza = 8 , fraction = 16* 0.6875 = 11 en hexadecimal es B
-		//Valor a cargar 0x811
-		ptrUsartHandler->ptrUSARTx->BRR = 0x8B;
-	}
-
-	// 2.6 Configuramos el modo: TX only, RX only, RXTX, disable
+	// 2.7 Configuramos el modo: TX only, RX only, RXTX, disable
 	switch(ptrUsartHandler->USART_Config.USART_mode){
 	case USART_MODE_TX:
 	{
@@ -197,7 +226,7 @@ void USART_Config(USART_Handler_t *ptrUsartHandler){
 	}
 	}
 
-	// 2.7 Activamos el modulo serial.
+	// 2.8 Activamos el modulo serial.
 	if(ptrUsartHandler->USART_Config.USART_mode != USART_MODE_DISABLE){
 		// Escriba acá su código
 		ptrUsartHandler->ptrUSARTx->CR1 |= USART_CR1_UE;
@@ -208,7 +237,22 @@ void USART_Config(USART_Handler_t *ptrUsartHandler){
 	 else{
 		 ptrUsartHandler->ptrUSARTx->CR1 &= ~USART_CR1_RXNEIE;
 	 }
-	 if(ptrUsartHandler->ptrUSARTx == USART2){
+
+	// Transimisión
+	if (ptrUsartHandler->USART_Config.USART_enableIntTX == USART_TX_INTERRUP_ENABLE){
+		ptrUsartHandler->ptrUSARTx->CR1 |= USART_CR1_TXEIE;
+	}
+	else{
+		ptrUsartHandler->ptrUSARTx->CR1 &= ~USART_CR1_TXEIE;
+	}
+
+	// Configuración de las interrupciones
+
+	 if(ptrUsartHandler->ptrUSARTx == USART1){
+		 __NVIC_EnableIRQ(USART1_IRQn);
+
+	 }
+	 else if(ptrUsartHandler->ptrUSARTx == USART2){
 		 __NVIC_EnableIRQ(USART2_IRQn);
 
 	 }
@@ -223,6 +267,12 @@ void USART_Config(USART_Handler_t *ptrUsartHandler){
 
 /* Creamos los callbacks de las interrupciones de los USART
  */
+__attribute__((weak)) void usart1Rx_Callback(void){
+	  /* NOTE : This function should not be modified, when the callback is needed,
+	            the usart2Rx_Callback could be implemented in the main file
+	   */
+	__NOP();
+}
 
 __attribute__((weak)) void usart2Rx_Callback(void){
 	  /* NOTE : This function should not be modified, when the callback is needed,
@@ -240,12 +290,8 @@ __attribute__((weak)) void usart6Rx_Callback(void){
 
 /* funcion para escribir un solo char */
 int writeChar(USART_Handler_t *ptrUsartHandler, int dataToSend ){
-	while( !(ptrUsartHandler->ptrUSARTx->SR & USART_SR_TXE)){
-		__NOP();
-	}
-
-	// Escriba acá su código
-	ptrUsartHandler->ptrUSARTx->DR = dataToSend;
+	ptrUsartHandler->ptrUSARTx->CR1 |= USART_CR1_TXEIE;
+	auxTxData = dataToSend;
 
 	return dataToSend;
 }
@@ -265,6 +311,19 @@ uint8_t getRXData(void){
  * Handler de la interrupción del USART
  * Acá deben estar todas las interrupciones asociadas: TX, RX, PE...
  */
+void USART1_IRQHandler(void){
+	// Evaluamos que la interrupción que se dio es por RX
+	if(USART1->SR & USART_SR_RXNE){
+		USART1->SR &= ~USART_SR_RXNE;
+		auxRxData = (uint8_t) USART1->DR;
+		usart1Rx_Callback();
+	}
+	else if(USART1->SR & USART_SR_TXE){
+		USART1->CR1 &= ~USART_SR_TXE;
+		auxTxData = (uint8_t) USART1->DR;
+	}
+
+}
 
 void USART2_IRQHandler(void){
 	// Evaluamos que la interrupción que se dio es por RX
@@ -273,12 +332,14 @@ void USART2_IRQHandler(void){
 		auxRxData = (uint8_t) USART2->DR;
 		usart2Rx_Callback();
 	}
+	else if(USART2->SR & USART_SR_TXE){
+		USART2->CR1 &= ~USART_SR_TXE;
+		auxTxData = (uint8_t) USART2->DR;
+
+	}
+
 }
 
-/*
- * Handler de la interrupción del USART
- * Acá deben estar todas las interrupciones asociadas: TX, RX, PE...
- */
 void USART6_IRQHandler(void){
 	// Evaluamos que la interrupción que se dio es por RX
 	if(USART6->SR & USART_SR_RXNE){
@@ -286,4 +347,10 @@ void USART6_IRQHandler(void){
 		auxRxData = (uint8_t) USART6->DR;
 		usart6Rx_Callback();
 	}
+	else if(USART6->SR & USART_SR_TXE){
+		USART6->CR1 &=~ USART_SR_TXE;
+		auxTxData = (uint8_t) USART6->DR;
+
+	}
+
 }
