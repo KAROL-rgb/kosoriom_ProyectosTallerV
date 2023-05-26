@@ -75,9 +75,12 @@ typedef struct
 
 /* Definicion de los prototipos para las funciones del USART */
 void USART_Config(USART_Handler_t *ptrUsartHandler);
-int writeChar(USART_Handler_t *ptrUsartHandler, int dataToSend );
+int writeChar(USART_Handler_t *ptrUsartHandler, char dataToSend );
 void writeMsg(USART_Handler_t *ptrUsartHandler, char *msgToSend);
+int writeIntChar(USART_Handler_t *ptrUsartHandler, char dataToSend);
+void writeIntMsg(USART_Handler_t *ptrUsartHandler, char *msgToSend);
 uint8_t getRXData(void);
+uint8_t getTXData(void);
 void usart1Rx_Callback(void);
 void usart2Rx_Callback(void);
 void usart6Rx_Callback(void);

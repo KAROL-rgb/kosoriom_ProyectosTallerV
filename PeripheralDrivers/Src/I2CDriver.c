@@ -76,11 +76,6 @@ void i2c_config(I2C_Handler_t *ptrHandlerI2C){
 	ptrHandlerI2C->ptrI2Cx->CR1 |= I2C_CR1_PE;
 }
 
-/* 8. Generamos la condición de stop */
-void i2c_stopTransaction(I2C_Handler_t *ptrHandlerI2C){
-	/* 7. Generamos la condición de stop */
-	ptrHandlerI2C->ptrI2Cx->CR1 |= I2C_CR1_STOP;
-}
 
 /* 1. VerificaMos que la línea no esta ocupada - bit "busy" en I2C_CR2 */
 /* 2. Generamos la señal "start" */
@@ -88,7 +83,7 @@ void i2c_stopTransaction(I2C_Handler_t *ptrHandlerI2C){
 /*Mientras esperamos, el valor de SB es 0, entonces la negación (!) es 1*/
 void i2c_startTransaction(I2C_Handler_t *ptrHandlerI2C){
 	/* 1. Verificamos que la línea no está ocupada - bit "busy" en I2C_CR2 */
-	while(!(ptrHandlerI2C->ptrI2Cx->SR1 & I2C_SR1_SB)){
+	while(!(ptrHandlerI2C->ptrI2Cx->SR2 & I2C_SR2_BUSY)){
 		__NOP();
 	}
 
@@ -100,6 +95,12 @@ void i2c_startTransaction(I2C_Handler_t *ptrHandlerI2C){
 	while(!(ptrHandlerI2C->ptrI2Cx-> SR1 & I2C_SR1_SB)){
 		__NOP();
 	}
+}
+
+/* 8. Generamos la condición de stop */
+void i2c_stopTransaction(I2C_Handler_t *ptrHandlerI2C){
+	/* 7. Generamos la condición de stop */
+	ptrHandlerI2C->ptrI2Cx->CR1 |= I2C_CR1_STOP;
 }
 
 /**/
@@ -201,14 +202,15 @@ uint8_t i2c_readSingleRegister(I2C_Handler_t *ptrHandlerI2C, uint8_t regToRead){
 	/* 5. Enviamos la dirección de l esclavo y la indicación de LEER */
 	i2c_sendSlaveAddressRW(ptrHandlerI2C, ptrHandlerI2C->slaveAddress, I2C_READ_DATA);
 
-	/* 8. Leemos el dato que envía el esclavo */
-	auxRead = i2c_readDataByte(ptrHandlerI2C);
 
 	/* 6. Generamos la condición de NoAck, para que el Master no responda y el slave solo envíe 1 byte */
 	i2c_sendNoAck(ptrHandlerI2C);
 
 	/* 7. Generamos la condición Stop, para que el slave se detenga después de 1 byte */
 	i2c_stopTransaction(ptrHandlerI2C);
+
+	/* 8. Leemos el dato que envía el esclavo */
+	auxRead = i2c_readDataByte(ptrHandlerI2C);
 
 	return auxRead;
 }

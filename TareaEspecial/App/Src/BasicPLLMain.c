@@ -27,6 +27,7 @@ int main(void){
 
 	initSystem();
 	PLL_Config();
+	getConfigPLL();
 
 	while(1){
 
@@ -48,7 +49,7 @@ void initSystem(void){
 	// Configurando el Timer2 para que funcione con el blinky
 	handlerBlinkyTimer.ptrTIMx           = TIM2;
 	handlerBlinkyTimer.TIMx_Config.TIMx_mode = BTIMER_MODE_UP;
-	handlerBlinkyTimer.TIMx_Config.TIMx_speed  = BTIMER_80MHz_SPEED_1us;
+	handlerBlinkyTimer.TIMx_Config.TIMx_speed  = BTIMER_80MHz_SPEED_100us;
 	handlerBlinkyTimer.TIMx_Config.TIMx_period = 2500;
 	handlerBlinkyTimer.TIMx_Config.TIMx_interruptEnable = ENABLE;
 	BasicTimer_Config(&handlerBlinkyTimer);

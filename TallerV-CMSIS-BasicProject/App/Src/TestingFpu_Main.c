@@ -27,15 +27,15 @@ BasicTimer_Handler_t handlerBlinkyTimer = {0};
 
 GPIO_Handler_t handlerPinTX = {0};
 GPIO_Handler_t handlerPinRX = {0};
-USART_Handler_t usart2Comm = {0};
+USART_Handler_t usart1Comm = {0};
 uint8_t sendMsg = 0;
-uint8_t usart2DataReceived = 0;
+uint8_t usart1DataReceived = 0;
 
 char bufferMsg[64] = {0};
 
 float valueA = 123.4567f;
 float valueB = 987.7654f;
-float valueC =0.0f;
+float valueC = 0.0f;
 
 
 // Definición de las cabeceras de las funciones del main
@@ -58,12 +58,12 @@ void initSystem(void);
 		 /*  Realiza operación de punto flotante cuando se recibe
 		  * algun caracter por el puerto serial
 		  * */
-		 if(usart2DataReceived != '\0'){
+		 if(usart1DataReceived != '\0'){
 
 			 valueC = valueA * valueB;
 			 sprintf(bufferMsg, "ValueC =%#.3f \n", valueC);
-			 writeMsg(&usart2Comm, bufferMsg);
-			 usart2DataReceived = '\0';
+			 writeMsg(&usart1Comm, bufferMsg);
+			 usart1DataReceived = '\0';
 
 		 }
 
@@ -109,27 +109,27 @@ void initSystem(void);
 
 	 /* Configuración de la comunicación serial */
 	 handlerPinTX.pGPIOx                    =GPIOA;
-	 handlerPinTX.GPIO_PinConfig.GPIO_PinNumber = PIN_2;
+	 handlerPinTX.GPIO_PinConfig.GPIO_PinNumber = PIN_15;
 	 handlerPinTX.GPIO_PinConfig.GPIO_PinMode = GPIO_MODE_ALTFN;
 	 handlerPinTX.GPIO_PinConfig.GPIO_PinAltFunMode = AF7;
 	 GPIO_Config(&handlerPinTX);
 
-	 handlerPinRX.pGPIOx       = GPIOA;
+	 handlerPinRX.pGPIOx       = GPIOB;
 	 handlerPinRX.GPIO_PinConfig.GPIO_PinNumber = PIN_3;
 	 handlerPinRX.GPIO_PinConfig.GPIO_PinMode = GPIO_MODE_ALTFN;
 	 handlerPinRX.GPIO_PinConfig.GPIO_PinAltFunMode = AF7;
 	 GPIO_Config(&handlerPinRX);
 
-	 usart2Comm.ptrUSARTx        = USART2;
-	 usart2Comm.USART_Config.USART_baudrate = USART_BAUDRATE_9600;
-	 usart2Comm.USART_Config.USART_datasize = USART_DATASIZE_8BIT;
-	 usart2Comm.USART_Config.USART_parity  = USART_PARITY_NONE;
-	 usart2Comm.USART_Config.USART_stopbits = USART_STOPBIT_1;
-	 usart2Comm.USART_Config.USART_mode = USART_MODE_RXTX;
-	 usart2Comm.USART_Config.USART_enableIntRX = USART_RX_INTERRUP_ENABLE;
-	 usart2Comm.USART_Config.USART_enableIntTX = USART_TX_INTERRUP_ENABLE;
+	 usart1Comm.ptrUSARTx        = USART1;
+	 usart1Comm.USART_Config.USART_baudrate = USART_BAUDRATE_9600;
+	 usart1Comm.USART_Config.USART_datasize = USART_DATASIZE_8BIT;
+	 usart1Comm.USART_Config.USART_parity  = USART_PARITY_NONE;
+	 usart1Comm.USART_Config.USART_stopbits = USART_STOPBIT_1;
+	 usart1Comm.USART_Config.USART_mode = USART_MODE_RXTX;
+	 usart1Comm.USART_Config.USART_enableIntRX = USART_RX_INTERRUP_ENABLE;
+	 usart1Comm.USART_Config.USART_enableIntTX = USART_TX_INTERRUP_DISABLE;
 
-	 USART_Config(&usart2Comm);
+	 USART_Config(&usart1Comm);
 
 
 
@@ -153,8 +153,8 @@ void callback_extInt13(void){
 /* Esta función se ejecuta cada vez que un carácter es recibido
  * por el puerto USART2
  */
-void usart2Rx_Callback(void){
-	usart2DataReceived = getRXData();
+void usart1Rx_Callback(void){
+	usart1DataReceived = getRXData();
 }
 
 

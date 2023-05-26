@@ -8,6 +8,7 @@
 #include "BasicTimer.h"
 #include "ExtiDriver.h"
 #include "USARTxDriver.h"
+#include "PLLDriver.h"
 
 
 /* Definicion de los elementos */
@@ -20,34 +21,46 @@ USART_Handler_t usart2comm = {0};
 GPIO_Handler_t handlerPinTX = {0};
 GPIO_Handler_t handlerPinRX = {0};
 BasicTimer_Handler_t handlerBlinkyTimer = {0};
-
+uint8_t usart2DataReceived = 0;
 // Variables
 uint8_t sendMsg = 0;
 
-
+char prueba = 'k';
 
 /* Prototipos de funciones del main */
 void initSystem(void);
 void callback_extInt13(void);
 void BasicTimer2_Callback(void);
-void usart2Rx_Callback(void);
+void usart1Rx_Callback(void);
 
 
 int main(void){
 
-	/* Inicializacion de elementos*/
+	PLL_Config();
 	initSystem();
+	writeIntChar(&usart2comm, prueba);
 
-	// writeMsg(&usart2comm, "Hola mundo ! !");
+	// Prueba a 80MHz
+
+
+
+
+
+	/* Inicializacion de elementos*/
+
+
+//	 writeMsg(&usart1comm, "Hola mundo ! !");
 		/* Loop forever */
 		while(1){
 			if(sendMsg == 1){
-				writeMsg(&usart2comm, "Hola Mundo !!");
+			writeIntChar(&usart2comm, 'k');
+//				writeMsg(&usart2comm, "Hola Mundo !!");
 				sendMsg = 0;
-			}
 		}
+		return 0;
+}
 
-	return 0;
+
 }
 
 void initSystem(void){
@@ -105,8 +118,8 @@ void initSystem(void){
 	usart2comm.USART_Config.USART_parity = USART_PARITY_NONE;
 	usart2comm.USART_Config.USART_stopbits = USART_STOPBIT_1;
 	usart2comm.USART_Config.USART_mode = USART_MODE_RXTX;
-	usart2comm.USART_Config.USART_enableIntRX = USART_RX_INTERRUP_DISABLE;
-	usart2comm.USART_Config.USART_enableIntTX = USART_TX_INTERRUP_DISABLE;
+	usart2comm.USART_Config.USART_enableIntRX = USART_RX_INTERRUP_ENABLE;
+	usart2comm.USART_Config.USART_enableIntTX = USART_TX_INTERRUP_ENABLE;
 
 	USART_Config(&usart2comm);
 }
@@ -121,6 +134,12 @@ void callback_extInt13(void){
 	__NOP();
 
 }
+
+//void usart2Rx_Callback(void){
+//	usart2DataReceived = getTXData();
+//}
+
+
 
 
 

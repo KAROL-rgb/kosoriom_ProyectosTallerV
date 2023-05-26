@@ -8,7 +8,7 @@
 #include <stm32f4xx.h>
 #include "PLLDriver.h"
 
-uint8_t var = 0;
+
 
 void PLL_Config(void){
 
@@ -34,7 +34,7 @@ void PLL_Config(void){
 	 * Se toma el factor de multiplicación PLLN = 80MHz  */
 
 	RCC->PLLCFGR &= ~(RCC_PLLCFGR_PLLN);
-	RCC->PLLCFGR |= (85 << RCC_PLLCFGR_PLLN_Pos);
+	RCC->PLLCFGR |= (80 << RCC_PLLCFGR_PLLN_Pos);
 
 	/* Luego se configura el factor de división PLLM = 2MHz  */
 
@@ -98,8 +98,16 @@ void PLL_Config(void){
  * se entregará una frecuencia de 80MHz o de lo contrario será 16MHz */
 
 uint32_t getConfigPLL(void){
+	uint32_t var = 0;
+//	uint32_t PLLN = (RCC->PLLCFGR & RCC_PLLCFGR_PLLN) >> (RCC_PLLCFGR_PLLN_Pos);
 
-	var = (RCC->CR & RCC_CR_PLLON) >> (RCC_CR_PLLON_Pos);
+	if(RCC->CFGR & RCC_CR_PLLON){
+		var = (FRECUENCY_80MHz);
+	}
+	else{
+		var  = FRECUENCY_16MHz;
+
+	}
 
 	return var;
 

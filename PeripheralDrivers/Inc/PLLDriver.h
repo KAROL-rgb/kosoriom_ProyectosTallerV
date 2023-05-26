@@ -14,5 +14,6 @@
 // Definicion de cabeceras para funciones del PLL
 void PLL_Config(void);
 uint32_t getConfigPLL(void);
+uint32_t FrecUsart2(void);
 
 #endif /* PLLDRIVER_H_ */
