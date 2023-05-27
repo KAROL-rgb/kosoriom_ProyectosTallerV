@@ -16,12 +16,15 @@ GPIO_Handler_t handlerLED2 = {0}; //PA5 (LED del micro)
 GPIO_Handler_t handlerSW = {0}; // Botón
 EXTI_Config_t extiSW = {0};
 
+
+PLL_Handler_t handlerPLL = {0};
+
 // Sistema de comunicación USART:
-USART_Handler_t usart2comm = {0};
+USART_Handler_t usart1comm = {0};
 GPIO_Handler_t handlerPinTX = {0};
 GPIO_Handler_t handlerPinRX = {0};
 BasicTimer_Handler_t handlerBlinkyTimer = {0};
-uint8_t usart2DataReceived = 0;
+uint8_t usart1DataReceived = 0;
 // Variables
 uint8_t sendMsg = 0;
 
@@ -36,25 +39,21 @@ void usart1Rx_Callback(void);
 
 int main(void){
 
-	PLL_Config();
+
 	initSystem();
-	writeIntChar(&usart2comm, prueba);
+	writeChar(&usart1comm, prueba);
 
 	// Prueba a 80MHz
-
-
-
-
 
 	/* Inicializacion de elementos*/
 
 
-//	 writeMsg(&usart1comm, "Hola mundo ! !");
+	 writeMsg(&usart1comm, "Hola mundo ! !");
 		/* Loop forever */
 		while(1){
 			if(sendMsg == 1){
-			writeIntChar(&usart2comm, 'k');
-//				writeMsg(&usart2comm, "Hola Mundo !!");
+			writeChar(&usart1comm, prueba);
+				writeMsg(&usart1comm, "Hola Mundo !!");
 				sendMsg = 0;
 		}
 		return 0;
@@ -64,6 +63,9 @@ int main(void){
 }
 
 void initSystem(void){
+
+	handlerPLL.frecSpeed = FRECUENCY_80MHz;
+	PLL_Config(&handlerPLL);
 
 	/* Configuración del LED, Pin PA5 */
 	handlerLED2.pGPIOx = GPIOA;
@@ -77,7 +79,7 @@ void initSystem(void){
 	/* Config TIM2 para encender el LED2 (LED de estado) cada 250 ms */
 	handlerBlinkyTimer.ptrTIMx = TIM2;
 	handlerBlinkyTimer.TIMx_Config.TIMx_mode		= BTIMER_MODE_UP;
-	handlerBlinkyTimer.TIMx_Config.TIMx_speed		= BTIMER_SPEED_100us;
+	handlerBlinkyTimer.TIMx_Config.TIMx_speed		= BTIMER_80MHz_SPEED_100us;
 	handlerBlinkyTimer.TIMx_Config.TIMx_period		= 250;                // Interrupcion cada 250 ms
 	handlerBlinkyTimer.TIMx_Config.TIMx_interruptEnable = ENABLE;
 	BasicTimer_Config(&handlerBlinkyTimer);
@@ -101,27 +103,27 @@ void initSystem(void){
 	/* Configuración de la comunicación serial */
 
 	handlerPinTX.pGPIOx = GPIOA;
-	handlerPinTX.GPIO_PinConfig.GPIO_PinNumber = PIN_2;
+	handlerPinTX.GPIO_PinConfig.GPIO_PinNumber = PIN_15;
 	handlerPinTX.GPIO_PinConfig.GPIO_PinMode = GPIO_MODE_ALTFN;
 	handlerPinTX.GPIO_PinConfig.GPIO_PinAltFunMode = AF7;
 	GPIO_Config(&handlerPinTX);
 
-	handlerPinRX.pGPIOx = GPIOA;
+	handlerPinRX.pGPIOx = GPIOB;
 	handlerPinRX.GPIO_PinConfig.GPIO_PinNumber = PIN_3;
 	handlerPinRX.GPIO_PinConfig.GPIO_PinMode = GPIO_MODE_ALTFN;
 	handlerPinRX.GPIO_PinConfig.GPIO_PinAltFunMode = AF7;
 	GPIO_Config(&handlerPinRX);
 
-	usart2comm.ptrUSARTx = USART2;
-	usart2comm.USART_Config.USART_baudrate = USART_BAUDRATE_115200;
-	usart2comm.USART_Config.USART_datasize = USART_DATASIZE_8BIT;
-	usart2comm.USART_Config.USART_parity = USART_PARITY_NONE;
-	usart2comm.USART_Config.USART_stopbits = USART_STOPBIT_1;
-	usart2comm.USART_Config.USART_mode = USART_MODE_RXTX;
-	usart2comm.USART_Config.USART_enableIntRX = USART_RX_INTERRUP_ENABLE;
-	usart2comm.USART_Config.USART_enableIntTX = USART_TX_INTERRUP_ENABLE;
+	usart1comm.ptrUSARTx = USART1;
+	usart1comm.USART_Config.USART_baudrate = USART_BAUDRATE_115200;
+	usart1comm.USART_Config.USART_datasize = USART_DATASIZE_8BIT;
+	usart1comm.USART_Config.USART_parity = USART_PARITY_NONE;
+	usart1comm.USART_Config.USART_stopbits = USART_STOPBIT_1;
+	usart1comm.USART_Config.USART_mode = USART_MODE_RXTX;
+	usart1comm.USART_Config.USART_enableIntRX = USART_RX_INTERRUP_ENABLE;
+	usart1comm.USART_Config.USART_enableIntTX = USART_TX_INTERRUP_ENABLE;
 
-	USART_Config(&usart2comm);
+	USART_Config(&usart1comm);
 }
 
 void BasicTimer2_Callback(void){
@@ -135,9 +137,9 @@ void callback_extInt13(void){
 
 }
 
-//void usart2Rx_Callback(void){
-//	usart2DataReceived = getTXData();
-//}
+void usart1Rx_Callback(void){
+	usart1DataReceived = getRXData();
+}
 
 
 

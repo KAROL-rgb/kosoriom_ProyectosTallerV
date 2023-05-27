@@ -25,8 +25,14 @@
 #define I2C_MODE_SM_SPEED_100KHz  80
 #define I2C_MODE_FM_SPEED_400KHz  14
 
+#define I2C_MODE_SM_80_SPEED_100KHz 400
+#define I2C_MODE_SM_80_SPEED_400KHz 67
+
 #define I2C_MAX_RISE_TIME_SM      17
 #define I2C_MAX_RISE_TIME_FM      5
+
+#define I2C_MAX_RISE_80_TIME_SM   81
+#define I2C_MAX_RISE_80_TIME_FM   25
 
 
 typedef struct
@@ -35,6 +41,9 @@ typedef struct
 	uint8_t          slaveAddress;
 	uint8_t          modeI2C;
 	uint8_t          dataI2C;
+	uint8_t          mainClock;
+	uint8_t          maxI2C_FM;
+	uint8_t          modeI2C_FM;
 }I2C_Handler_t;
 
 /* Prototipos de las funciones públicas */

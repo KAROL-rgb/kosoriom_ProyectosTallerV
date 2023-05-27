@@ -18,6 +18,9 @@
 #include "BasicTimer.h"
 //#include "SysTickDriver.h"
 #include "I2CDriver.h"
+#include "PLLDriver.h"
+
+#include <math.h>
 
 /* Definición de variables */
 GPIO_Handler_t handlerLedOK = {0};
@@ -25,6 +28,8 @@ GPIO_Handler_t handlerPinTX = {0};
 GPIO_Handler_t handlerPinRX = {0};
 
 BasicTimer_Handler_t handlerStateOKTimer = {0};
+
+PLL_Handler_t handlerPLL = {0};
 
 USART_Handler_t  handlerCommTerminal = {0};
 uint8_t rxData = 0;
@@ -56,6 +61,7 @@ void initSystem(void);
 
 int main(void)
 {
+	SCB->CPACR |= (0xF <<20);
 	// Llamamos a la función que nos inicializa el hardware del sistema
 	initSystem();
 
@@ -102,7 +108,7 @@ int main(void)
 				uint8_t AccelX_high = i2c_readSingleRegister(&handlerAccelerometer, ACCEL_XOUT_H);
 				int16_t AccelX = AccelX_high << 8 | AccelX_low;
 
-				sprintf(bufferData, "AccelX = %d \n", (int) AccelX);
+				sprintf(bufferData, "AccelX = %.2f \n", (int) (AccelX/256.f)*9.78);
 				writeMsg(&handlerCommTerminal, bufferData);
 				rxData = '\0';
 			}
@@ -114,7 +120,7 @@ int main(void)
 				uint8_t AccelY_high = i2c_readSingleRegister(&handlerAccelerometer, ACCEL_YOUT_H);
 				int16_t AccelY = AccelY_high << 8 | AccelY_low;
 
-				sprintf(bufferData, "AccelY = %d \n", (int) AccelY);
+				sprintf(bufferData, "AccelY = %.2f \n", (int) (AccelY/256.f)*9.78);
 				writeMsg(&handlerCommTerminal, bufferData);
 				rxData = '\0';
 			}
@@ -127,7 +133,7 @@ int main(void)
 				uint8_t AccelZ_high = i2c_readSingleRegister(&handlerAccelerometer, ACCEL_ZOUT_H);
 				int16_t AccelZ = AccelZ_high << 8 | AccelZ_low;
 
-				sprintf(bufferData, "AccelZ = %d \n", (int) AccelZ);
+				sprintf(bufferData, "AccelZ = %.2f \n", (int) (AccelZ/256.f)*9.78);
 				writeMsg(&handlerCommTerminal, bufferData);
 				rxData = '\0';
 			}
@@ -142,6 +148,10 @@ int main(void)
 
 
 void initSystem(void){
+
+
+	 handlerPLL.frecSpeed = FRECUENCY_80MHz;
+	 PLL_Config(&handlerPLL);
 	//Configurando el pin para el Led Blinky
 	handlerLedOK.pGPIOx                              = GPIOH;
 	handlerLedOK.GPIO_PinConfig.GPIO_PinNumber       = PIN_1;
@@ -157,26 +167,20 @@ void initSystem(void){
 	/*Configurando la comunicación serial*/
 	//Pin de transmisión
 	handlerPinTX.pGPIOx                                  = GPIOA;
-	handlerPinTX.GPIO_PinConfig.GPIO_PinNumber           = PIN_2;
+	handlerPinTX.GPIO_PinConfig.GPIO_PinNumber           = PIN_15;
 	handlerPinTX.GPIO_PinConfig.GPIO_PinMode             = GPIO_MODE_ALTFN;
-	handlerPinRX.GPIO_PinConfig.GPIO_PinOPType           = GPIO_OTYPE_PUSHPULL;
-	handlerPinRX.GPIO_PinConfig.GPIO_PinPuPdControl      = GPIO_PUPDR_NOTHING;
-	handlerPinRX.GPIO_PinConfig.GPIO_PinSpeed            = GPIO_OSPEED_FAST;
 	handlerPinTX.GPIO_PinConfig.GPIO_PinAltFunMode       = AF7;
 	GPIO_Config(&handlerPinTX);
 
 	//Pin de recepción
-	handlerPinRX.pGPIOx                                  = GPIOA;
+	handlerPinRX.pGPIOx                                  = GPIOB;
 	handlerPinRX.GPIO_PinConfig.GPIO_PinNumber           = PIN_3;
 	handlerPinRX.GPIO_PinConfig.GPIO_PinMode             = GPIO_MODE_ALTFN;
-	handlerPinRX.GPIO_PinConfig.GPIO_PinOPType           = GPIO_OTYPE_PUSHPULL;
-	handlerPinRX.GPIO_PinConfig.GPIO_PinPuPdControl      = GPIO_PUPDR_NOTHING;
-	handlerPinRX.GPIO_PinConfig.GPIO_PinSpeed            = GPIO_OSPEED_FAST;
 	handlerPinRX.GPIO_PinConfig.GPIO_PinAltFunMode       = AF7;
 	GPIO_Config(&handlerPinRX);
 
 	// Configuración comunicación serial
-	handlerCommTerminal.ptrUSARTx                                 = USART2;
+	handlerCommTerminal.ptrUSARTx                                 = USART1;
 	handlerCommTerminal.USART_Config.USART_baudrate               = USART_BAUDRATE_115200;
 	handlerCommTerminal.USART_Config.USART_datasize               = USART_DATASIZE_8BIT;
 	handlerCommTerminal.USART_Config.USART_parity                 = USART_PARITY_NONE;
@@ -189,10 +193,13 @@ void initSystem(void){
 	/*Configurando el timer*/
 	handlerStateOKTimer.ptrTIMx                          = TIM2;
 	handlerStateOKTimer.TIMx_Config.TIMx_mode            = BTIMER_MODE_UP;
-	handlerStateOKTimer.TIMx_Config.TIMx_speed           = BTIMER_SPEED_100us;
+	handlerStateOKTimer.TIMx_Config.TIMx_speed           = BTIMER_80MHz_SPEED_100us;
 	handlerStateOKTimer.TIMx_Config.TIMx_period          = 2500;
 	handlerStateOKTimer.TIMx_Config.TIMx_interruptEnable = 1;
 	BasicTimer_Config(&handlerStateOKTimer);
+
+
+
 
 	/*Configurando los pines sobre los que funciona el I2C1*/
 	handlerI2cSCL.pGPIOx                                 = GPIOB;
@@ -214,19 +221,27 @@ void initSystem(void){
 	handlerI2cSDA.GPIO_PinConfig.GPIO_PinAltFunMode      = AF4;
 	GPIO_Config(&handlerI2cSDA);
 
+
 	/*Configurando el acelerómetro*/
 
 	handlerAccelerometer.ptrI2Cx                         = I2C1;
 	handlerAccelerometer.modeI2C                         = I2C_MODE_FM;
 	handlerAccelerometer.slaveAddress                    = ACCEL_ADDRESS;
+	handlerAccelerometer.mainClock                       = MAIN_CLOCK_80_MHz_FOR_I2C;
+	handlerAccelerometer.maxI2C_FM                       = I2C_MAX_RISE_80_TIME_FM;
+	handlerAccelerometer.modeI2C_FM                      = I2C_MODE_SM_80_SPEED_400KHz;
+
+
+
 	i2c_config(&handlerAccelerometer);
+
 
 }
 
 /* Callback relacionado con la recepción del USART2
  * Debo leer el puerto para bajar la bandera de la interrupción
  * */
-void usart2Rx_Callback(void){
+void usart1Rx_Callback(void){
 	//Leemos el valor del registro DR, donde se almacena el dato que llega.
 	//Esto además debe bajar la bandera de la interrupción
 	rxData = getRXData();

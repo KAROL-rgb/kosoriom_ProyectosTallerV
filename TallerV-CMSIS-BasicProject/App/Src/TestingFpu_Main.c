@@ -14,7 +14,8 @@
 #include "GPIOxDriver.h"
 #include "BasicTimer.h"
 #include "ExtiDriver.h"
-#include"USARTxDriver.h"
+#include "USARTxDriver.h"
+#include "PLLDriver.h"
 
 // Definición de los handlers necesarios
 GPIO_Handler_t handlerBlinkyPin = {0};
@@ -23,6 +24,7 @@ GPIO_Handler_t handlerUserButton = {0};
 EXTI_Config_t handlerUserButtonExti = {0};
 BasicTimer_Handler_t handlerBlinkyTimer = {0};
 
+PLL_Handler_t handlerPLL = {0};
 /* Elemento para hacer la comunicación serial */
 
 GPIO_Handler_t handlerPinTX = {0};
@@ -53,6 +55,7 @@ void initSystem(void);
 
 	 // Inicializamos todos los elementos del sistema
 	 initSystem();
+
 	 /* Loop forever */
 	 while(1){
 		 /*  Realiza operación de punto flotante cuando se recibe
@@ -77,6 +80,8 @@ void initSystem(void);
   */
  void initSystem(void){
 
+	 handlerPLL.frecSpeed = FRECUENCY_80MHz;
+	 PLL_Config(&handlerPLL);
 	 // Configuramos el pin para el LED_Blinky
 	 handlerBlinkyPin.pGPIOx              = GPIOA;
 	 handlerBlinkyPin.GPIO_PinConfig.GPIO_PinNumber = PIN_5;
@@ -89,7 +94,7 @@ void initSystem(void);
 	 //Configurando el Timer2 para que funcione con el blinky
 	 handlerBlinkyTimer.ptrTIMx                   = TIM2;
 	 handlerBlinkyTimer.TIMx_Config.TIMx_mode = BTIMER_MODE_UP;
-	 handlerBlinkyTimer.TIMx_Config.TIMx_speed = BTIMER_SPEED_100us;
+	 handlerBlinkyTimer.TIMx_Config.TIMx_speed = BTIMER_80MHz_SPEED_100us;
 	 handlerBlinkyTimer.TIMx_Config.TIMx_period =2500;
 	 handlerBlinkyTimer.TIMx_Config.TIMx_interruptEnable = BTIMER_INTERRUP_ENABLE;
 	 BasicTimer_Config(&handlerBlinkyTimer);
@@ -121,7 +126,7 @@ void initSystem(void);
 	 GPIO_Config(&handlerPinRX);
 
 	 usart1Comm.ptrUSARTx        = USART1;
-	 usart1Comm.USART_Config.USART_baudrate = USART_BAUDRATE_9600;
+	 usart1Comm.USART_Config.USART_baudrate = USART_BAUDRATE_115200;
 	 usart1Comm.USART_Config.USART_datasize = USART_DATASIZE_8BIT;
 	 usart1Comm.USART_Config.USART_parity  = USART_PARITY_NONE;
 	 usart1Comm.USART_Config.USART_stopbits = USART_STOPBIT_1;

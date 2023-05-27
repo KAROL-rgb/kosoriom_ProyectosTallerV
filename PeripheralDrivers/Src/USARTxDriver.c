@@ -10,7 +10,7 @@
 #include "PLLDriver.h"
 
 uint8_t auxRxData = 0;
-uint8_t auxTxData = 0;
+//uint8_t auxTxData = 0;
 /**
  * Configurando el puerto Serial...
  * Recordar que siempre se debe comenzar con activar la señal de reloj
@@ -66,9 +66,9 @@ void USART_Config(USART_Handler_t *ptrUsartHandler){
 		if(ptrUsartHandler->USART_Config.USART_parity == USART_PARITY_EVEN){
 			// Es even, entonces cargamos la configuracion adecuada
 			// Escriba acá su código
-			ptrUsartHandler->ptrUSARTx->CR1 |= USART_CR1_PCE;
+//			ptrUsartHandler->ptrUSARTx->CR1 |= USART_CR1_PCE;
 			ptrUsartHandler->ptrUSARTx->CR1 &= ~USART_CR1_PS;  //Limpiar PS bit para Even parity
-			ptrUsartHandler->ptrUSARTx->CR1 |= USART_CR1_PEIE; //Configurar la interrupción de error de paridad
+//			ptrUsartHandler->ptrUSARTx->CR1 |= USART_CR1_PEIE; //Configurar la interrupción de error de paridad
 		}else if(ptrUsartHandler->USART_Config.USART_parity == USART_PARITY_ODD){
 			// Si es "else" significa que la paridad seleccionada es ODD, y cargamos esta configuracion
 			// Escriba acá su código
@@ -321,19 +321,19 @@ void writeMsg(USART_Handler_t *ptrUsartHandler, char *msgToSend){
 
 /* Función con transmisión */
 /* funcion para escribir un solo char */
-int writeIntChar(USART_Handler_t *ptrUsartHandler, char dataToSend){
-	ptrUsartHandler->ptrUSARTx->CR1 |= USART_CR1_TXEIE;
-	auxTxData = dataToSend;
-
-	return dataToSend;
-}
-
-void writeIntMsg(USART_Handler_t *ptrUsartHandler, char *msgToSend){
-	while(*msgToSend != '\0'){
-		writeChar(ptrUsartHandler, *msgToSend);
-		msgToSend++;
-	}
-}
+//int writeIntChar(USART_Handler_t *ptrUsartHandler, char dataToSend){
+//	ptrUsartHandler->ptrUSARTx->CR1 |= USART_CR1_TXEIE;
+//	auxTxData = dataToSend;
+//
+//	return dataToSend;
+//}
+//
+//void writeIntMsg(USART_Handler_t *ptrUsartHandler, char *msgToSend){
+//	while(*msgToSend != '\0'){
+//		writeChar(ptrUsartHandler, *msgToSend);
+//		msgToSend++;
+//	}
+//}
 
 uint8_t getRXData(void){
 	return auxRxData;
@@ -354,10 +354,10 @@ void USART1_IRQHandler(void){
 		auxRxData = (uint8_t) USART1->DR;
 		usart1Rx_Callback();
 	}
-	else if(USART1->SR & USART_SR_TXE){
-		USART1->CR1 &= ~USART_CR1_TXEIE;
-		auxTxData = (uint8_t) USART1->DR;
-	}
+//	else if(USART1->SR & USART_SR_TXE){
+//		USART1->CR1 &= ~USART_CR1_TXEIE;
+//		auxTxData = (uint8_t) USART1->DR;
+//	}
 
 }
 
@@ -368,12 +368,12 @@ void USART2_IRQHandler(void){
 		auxRxData = (uint8_t) USART2->DR;
 		usart2Rx_Callback();
 	}
-	else if(USART2->SR & USART_SR_TXE){
-		auxTxData = (uint8_t) USART2->DR;
-		USART2->CR1 &= ~USART_CR1_TXEIE;
-
-
-	}
+//	else if(USART2->SR & USART_SR_TXE){
+//		auxTxData = (uint8_t) USART2->DR;
+//		USART2->CR1 &= ~USART_CR1_TXEIE;
+//
+//
+//	}
 
 }
 
@@ -384,11 +384,11 @@ void USART6_IRQHandler(void){
 		auxRxData = (uint8_t) USART6->DR;
 		usart6Rx_Callback();
 	}
-	else if(USART6->SR & USART_SR_TXE){
-		USART6->CR1 &=~ USART_CR1_TXEIE;
-		auxTxData = (uint8_t) USART6->DR;
-
-	}
+//	else if(USART6->SR & USART_SR_TXE){
+//		USART6->CR1 &=~ USART_CR1_TXEIE;
+//		auxTxData = (uint8_t) USART6->DR;
+//
+//	}
 }
 /* Creamos los callbacks de las interrupciones de los USART
  */
