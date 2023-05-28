@@ -15,8 +15,8 @@
 #include "GPIOxDriver.h"
 #include "BasicTimer.h"
 #include "ExtiDriver.h"
-#include"USARTxDriver.h"
-
+#include "USARTxDriver.h"
+#include "arm_math.h"
 // Definición de los handlers necesarios
 GPIO_Handler_t handlerBlinkyPin = {0};
 
@@ -33,6 +33,11 @@ uint8_t sendMsg = 0;
 uint8_t usart2DataReceived = 0;
 
 char bufferMsg[64] = {0};
+
+/* Arreglos para pruebas de librerías de CMSIS */
+float32_t srcNumber[4] = {-0.987, 32.36, -45.21, -987.321};
+float32_t destNumber[4] = {0};
+uint32_t dataSize = 0;
 
 // Definición de las cabeceras de las funciones del main
 void initSystem(void);
@@ -55,6 +60,21 @@ void initSystem(void);
 		  * algun caracter por el puerto serial
 		  * */
 		 if(usart2DataReceived != '\0'){
+
+//			 dataSize = sizeof(srcNumber);
+			 dataSize = 4;
+			 /* Ejecutando la función */
+			 arm_abs_f32(srcNumber, destNumber, dataSize);
+
+			 for(int j = 0; j < 4; j++){
+
+				 sprintf(bufferMsg, "valor abs de %.2f = %#.2f \n", srcNumber[j],destNumber[j]);
+				 writeMsg(&usart2Comm, bufferMsg);
+
+
+			 }
+
+			 usart2DataReceived = '\0';
 
 
 		 }

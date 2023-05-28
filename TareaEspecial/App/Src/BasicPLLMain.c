@@ -229,8 +229,6 @@ void initSystem(void){
 	handlerAccelerometer.maxI2C_FM                       = I2C_MAX_RISE_80_TIME_FM;
 	handlerAccelerometer.modeI2C_FM                      = I2C_MODE_SM_80_SPEED_400KHz;
 
-
-
 	i2c_config(&handlerAccelerometer);
 
 
