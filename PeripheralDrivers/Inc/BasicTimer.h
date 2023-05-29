@@ -16,7 +16,7 @@
 
 #define BTIMER_80MHz_SPEED_100us   8000
 #define BTIMER_80MHz_SPEED_10us    800
-//#define BTIMER_80MHz_SPEED_1ms      80000
+
 
 #define BTIMER_SPEED_10us	160
 #define BTIMER_SPEED_100us	1600

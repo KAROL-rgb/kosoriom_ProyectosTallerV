@@ -412,10 +412,3 @@ __attribute__((weak)) void usart6Rx_Callback(void){
 	   */
 	__NOP();
 }
-
-
-
-
-
-
-
