@@ -10,14 +10,22 @@
 
 #include <stm32f4xx.h>
 
-#define SYSTICK_LOAD_VALUE_16MHz_1ms     16000   // Número de ciclos en 1ms
-#define SYSTICK_LOAD_VALUE_100MHz_1ms    100000  // Número de ciclos en 1ms
-#define SYSTICK_LOAD_VALUE_80MHz_1ms     80000
+#define SYSTICK_LOAD_VALUE_16MHz_1ms		16000	//Numero de ciclos en un ms
+#define SYSTICK_LOAD_VALUE_100MHz_1ms		100000	//Numero de ciclos en un ms
+#define SYSTICK_LOAD_VALUE_80MHz_1ms		80000	//Número de ciclos en 1ms
 
-void config_SysTick_ms(uint8_t systemClock);
-uint64_t getTicksMs(void);
-void delay_ms(uint32_t wait_time_ms);
+#define SYSTEMCLOCK_HSI				0
+#define SYSTEMCLOCK_HSE				1
+
+#define SYSTEMCLOCK_PLL_100MHz		2
+#define SYSTEMCLOCK_PLL_80MHz		3
 
 
+void config_SysTick_ms (uint8_t systemClock);
+uint64_t getTicks_ms(void);
+void delay_ms (uint32_t wait_time_ms);
 
 #endif /* SYSTICKDRIVER_H_ */
+
+
+

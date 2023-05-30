@@ -17,11 +17,12 @@
 #include "BasicTimer.h"
 #include "ExtiDriver.h"
 #include "USARTxDriver.h"
-//#include "SysTickDriver.h"
+#include "SysTickDriver.h"
 #include "PwmDriver.h"
 #include "I2CDriver.h"
 #include "arm_math.h"
 #include "PLLDriver.h"
+#include "LCDDriver.h"
 
 //Definición de los handlers necesarios
 GPIO_Handler_t handlerLedOK            = {0};
@@ -62,9 +63,14 @@ uint16_t duttyValueZ = 30000;
 
 uint8_t flagPwm = 0;
 
-uint16_t dutty1 = 0;
-uint16_t dutty2 = 0;
-uint16_t dutty3 = 0;
+
+// Handler para la LCD
+GPIO_Handler_t handlerSDA_LCD  = {0};
+GPIO_Handler_t handlerSCL_LCD = {0};
+BasicTimer_Handler_t handlerTimerLCD = {0};
+I2C_Handler_t handlerLCD = {0};
+uint8_t flagLCD = {0};
+
 
 float arrayX[2000]={0};
 float arrayY[2000]={0};
@@ -87,6 +93,8 @@ float arrayZ[2000]={0};
 void initSystem(void);
 void acelerometro(void);
 void generarPwm(void);
+void initLCD(void);
+void accelLCD(void);
 /**
  * Función principal del programa.
  */
@@ -95,6 +103,8 @@ int main(void){
 
 	//Inicializamos todos los elementos del sistema
 	initSystem();
+
+	initLCD();
 	// Se cambia la velocidad de muestreo
 	i2c_writeSingleRegister(&handlerAccelerometer, BW_RATE, 0xF);
 
@@ -104,6 +114,7 @@ int main(void){
 	while (1){
 		acelerometro();
 		generarPwm();
+		accelLCD();
 		}
 	}
 
@@ -111,7 +122,7 @@ void initSystem(void){
 
 	 handlerPLL.frecSpeed = FRECUENCY_80MHz;
 	 PLL_Config(&handlerPLL);
-
+	 config_SysTick_ms(2);
 
 	//Configurando el pin para el Led Blinky
 	SCB->CPACR |= (0xF << 20);
@@ -254,6 +265,41 @@ void initSystem(void){
 	handlerPinCH3.GPIO_PinConfig.GPIO_PinAltFunMode  = AF2;
 	GPIO_Config(&handlerPinCH3);
 
+	// Configuración LCD
+
+	handlerSCL_LCD.pGPIOx        					  = GPIOB;
+	handlerSCL_LCD.GPIO_PinConfig.GPIO_PinNumber 	  = PIN_10;
+	handlerSCL_LCD.GPIO_PinConfig.GPIO_PinMode  	  = GPIO_MODE_ALTFN;
+	handlerSCL_LCD.GPIO_PinConfig.GPIO_PinOPType	  = GPIO_OTYPE_OPENDRAIN;
+	handlerSCL_LCD.GPIO_PinConfig.GPIO_PinPuPdControl = GPIO_PUPDR_NOTHING;
+	handlerSCL_LCD.GPIO_PinConfig.GPIO_PinSpeed       = GPIO_OSPEED_FAST;
+	handlerSCL_LCD.GPIO_PinConfig.GPIO_PinAltFunMode  = AF4;
+	GPIO_Config(&handlerSCL_LCD);
+
+	handlerSDA_LCD.pGPIOx        					  = GPIOB;
+	handlerSDA_LCD.GPIO_PinConfig.GPIO_PinNumber 	  = PIN_3;
+	handlerSDA_LCD.GPIO_PinConfig.GPIO_PinMode  	  = GPIO_MODE_ALTFN;
+	handlerSDA_LCD.GPIO_PinConfig.GPIO_PinOPType	  = GPIO_OTYPE_OPENDRAIN;
+	handlerSDA_LCD.GPIO_PinConfig.GPIO_PinPuPdControl = GPIO_PUPDR_NOTHING;
+	handlerSDA_LCD.GPIO_PinConfig.GPIO_PinSpeed       = GPIO_OSPEED_FAST;
+	handlerSDA_LCD.GPIO_PinConfig.GPIO_PinAltFunMode  = AF9;
+	GPIO_Config(&handlerSDA_LCD);
+
+	handlerTimerLCD.ptrTIMx                          = TIM5;
+	handlerTimerLCD.TIMx_Config.TIMx_mode            = BTIMER_MODE_UP;
+	handlerTimerLCD.TIMx_Config.TIMx_speed           = BTIMER_80MHz_SPEED_100us;
+	handlerTimerLCD.TIMx_Config.TIMx_period          = 10000;
+	handlerTimerLCD.TIMx_Config.TIMx_interruptEnable = ENABLE;
+	BasicTimer_Config(&handlerTimerLCD);
+
+	handlerLCD.ptrI2Cx      = I2C2;
+	handlerLCD.modeI2C      = I2C_MODE_FM;
+	handlerLCD.slaveAddress = 0x24;
+	handlerLCD.mainClock    = MAIN_CLOCK_80_MHz_FOR_I2C;
+	handlerLCD.maxI2C_FM    = I2C_MAX_RISE_80_TIME_FM;
+	handlerLCD.modeI2C_FM   = I2C_MODE_FM_80_SPEED_400KHz;
+	i2c_config(&handlerLCD);
+	LCD_Init(&handlerLCD);
 
 
 
@@ -370,7 +416,7 @@ void generarPwm(void){
 		uint8_t AccelX_low = i2c_readSingleRegister(&handlerAccelerometer, ACCEL_XOUT_L);
 		uint8_t AccelX_high = i2c_readSingleRegister(&handlerAccelerometer, ACCEL_XOUT_H);
 		int16_t AccelX = AccelX_high << 8 | AccelX_low;
-		float valorX = (AccelX/220.f)*9.8;
+		float valorX = (AccelX/256.f)*9.8;
 
 		uint8_t AccelY_low = i2c_readSingleRegister(&handlerAccelerometer, ACCEL_YOUT_L);
 		uint8_t AccelY_high = i2c_readSingleRegister(&handlerAccelerometer, ACCEL_YOUT_H);
@@ -382,15 +428,66 @@ void generarPwm(void){
 		int16_t AccelZ = AccelZ_high << 8 | AccelZ_low;
 		float valorZ = (AccelZ/256.f)*9.8;
 
-		duttyValueX = 1020*(valorX) + 10000;
-		duttyValueY = 1020*(valorY) + 10000;
-		duttyValueZ = 1020*(valorZ) + 10000;
+		duttyValueX = 1020*(valorX) + 30000;
+		duttyValueY = 1020*(valorY) + 30000;
+		duttyValueZ = 1020*(valorZ) + 30000;
 
 		updateDuttyCycle(&handlerPwmX, duttyValueX);
 		updateDuttyCycle(&handlerPwmY, duttyValueY);
 		updateDuttyCycle(&handlerPwmZ, duttyValueZ);
 //		flagPwm =! flagPwm;
 
+
+}
+void initLCD(void){
+
+	LCD_setCursor(&handlerLCD, 0, 0);
+	LCD_sendSTR(&handlerLCD, "Eje X = ");
+	LCD_setCursor(&handlerLCD, 0, 16);
+	LCD_sendSTR(&handlerLCD, "m/s2");
+	LCD_setCursor(&handlerLCD, 1, 0);
+	LCD_sendSTR(&handlerLCD, "Eje Y = ");
+	LCD_setCursor(&handlerLCD, 1, 16);
+	LCD_sendSTR(&handlerLCD, "m/s2");
+	LCD_setCursor(&handlerLCD, 2, 0);
+	LCD_sendSTR(&handlerLCD, "Eje Z = ");
+	LCD_setCursor(&handlerLCD, 2, 16);
+	LCD_sendSTR(&handlerLCD, "m/s2");
+	LCD_setCursor(&handlerLCD, 3, 0);
+	LCD_sendSTR(&handlerLCD, "OFSZ MAX 250mg");
+
+}
+
+void accelLCD(void){
+
+	if(flagLCD == 1){
+		uint8_t AccelX_low = i2c_readSingleRegister(&handlerAccelerometer, ACCEL_XOUT_L);
+		uint8_t AccelX_high = i2c_readSingleRegister(&handlerAccelerometer, ACCEL_XOUT_H);
+		int16_t AccelX = AccelX_high << 8 | AccelX_low;
+		float valorX = (AccelX/220.f)*9.8;
+		sprintf(bufferData, "%.2f \n", valorX);
+		LCD_setCursor(&handlerLCD, 0, 9);
+		LCD_sendSTR(&handlerLCD, bufferData);
+
+		uint8_t AccelY_low = i2c_readSingleRegister(&handlerAccelerometer, ACCEL_YOUT_L);
+		uint8_t AccelY_high = i2c_readSingleRegister(&handlerAccelerometer, ACCEL_YOUT_H);
+		int16_t AccelY = AccelY_high << 8 | AccelY_low;
+		float valorY = (AccelY/256.f)*9.8;
+		sprintf(bufferData, "%.2f \n", valorY);
+		LCD_setCursor(&handlerLCD, 1, 9);
+		LCD_sendSTR(&handlerLCD, bufferData);
+
+		uint8_t AccelZ_low = i2c_readSingleRegister(&handlerAccelerometer, ACCEL_ZOUT_L);
+		uint8_t AccelZ_high = i2c_readSingleRegister(&handlerAccelerometer, ACCEL_ZOUT_H);
+		int16_t AccelZ = AccelZ_high << 8 | AccelZ_low;
+		float valorZ = (AccelZ/256.f)*9.8;
+		sprintf(bufferData, " %.2f \n", valorZ);
+		LCD_setCursor(&handlerLCD, 2, 9);
+		LCD_sendSTR(&handlerLCD, bufferData);
+		LCD_setCursor(&handlerLCD, 3, 0);
+
+		flagLCD =! flagLCD;
+	}
 
 }
 
@@ -414,7 +511,10 @@ void BasicTimer4_Callback(void){
 
 	}
 }
+void BasicTimer5_Callback(void){
 
+	flagLCD =! flagLCD;
+}
 //void BasicTimer3_Callback(void){
 //	flagPwm =! flagPwm;
 //}
