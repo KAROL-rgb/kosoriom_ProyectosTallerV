@@ -350,7 +350,7 @@ uint8_t getRXData(void){
 void USART1_IRQHandler(void){
 	// Evaluamos que la interrupción que se dio es por RX
 	if(USART1->SR & USART_SR_RXNE){
-		USART1->SR &= ~USART_SR_RXNE;
+//		USART1->SR &= ~USART_SR_RXNE;
 		auxRxData = (uint8_t) USART1->DR;
 		usart1Rx_Callback();
 	}

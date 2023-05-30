@@ -37,8 +37,9 @@ void i2c_config(I2C_Handler_t *ptrHandlerI2C){
 
 	/* 3. Indicamos cual es la velocidad del reloj principal, que es la señal utilizada
 	 * por el periférico para generar la señal de reloj para el bus I2C*/
-	ptrHandlerI2C->ptrI2Cx->CR2 &= (0b111111 << I2C_CR2_FREQ_Pos); // Borramos la configuración
-	ptrHandlerI2C->ptrI2Cx->CR2 |= (MAIN_CLOCK_16_MHz_FOR_I2C << I2C_CR2_FREQ_Pos);
+	ptrHandlerI2C->ptrI2Cx->CR2 &= ~(0b111111 << I2C_CR2_FREQ_Pos); // Borramos la configuración
+//	ptrHandlerI2C->ptrI2Cx->CR2 |= (MAIN_CLOCK_16_MHz_FOR_I2C << I2C_CR2_FREQ_Pos);
+	ptrHandlerI2C->ptrI2Cx->CR2 |= (ptrHandlerI2C->mainClock << I2C_CR2_FREQ_Pos);
 
 	/* 4. Configuramos el modo I2C en el que el sistema funciona
 	 * En esta configuración se incluye también la velocidad del reloj
@@ -47,31 +48,52 @@ void i2c_config(I2C_Handler_t *ptrHandlerI2C){
 	ptrHandlerI2C->ptrI2Cx->CCR = 0;
 	ptrHandlerI2C->ptrI2Cx->TRISE = 0;
 
-	if(ptrHandlerI2C->modeI2C == I2C_MODE_SM){
+//	if(ptrHandlerI2C->modeI2C == I2C_MODE_SM){
+//
+//		// Estamos en modo "standar" (SM Mode)
+//		// Seleccionamos el modo estándar
+//		ptrHandlerI2C->ptrI2Cx->CCR &= ~I2C_CCR_FS;
+//
+//		// Configuramos el registro que se encarga de generar la señal del reloj
+//		ptrHandlerI2C->ptrI2Cx->CCR |= (I2C_MODE_SM_SPEED_100KHz << I2C_CCR_CCR_Pos);
+//
+//		// Configuramos el registro que controla el tiempo T-Rise máximo
+//		ptrHandlerI2C->ptrI2Cx->TRISE |= I2C_MAX_RISE_TIME_SM;
+//	}
+//	else{
+//		// Estamos en modo "Fast" (FM mode)
+//		// Seleccioamos el modo Fast
+//		ptrHandlerI2C->ptrI2Cx->CCR |= I2C_CCR_FS;
+//
+//		// Configuramos el registro que se encarga de generar la señal del reloj
+//		ptrHandlerI2C->ptrI2Cx->CCR |= (I2C_MODE_FM_SPEED_400KHz  << I2C_CCR_CCR_Pos);
+//
+//		// Configuramos el registro que controla el tiempo T-Rise máximo
+//		ptrHandlerI2C->ptrI2Cx->TRISE |=I2C_MAX_RISE_TIME_FM;
+//
+//	}
 
-		// Estamos en modo "standar" (SM Mode)
-		// Seleccionamos el modo estándar
+	// 80MHz
+	if(ptrHandlerI2C->modeI2C == I2C_MODE_SM){
+		// SM mode
 		ptrHandlerI2C->ptrI2Cx->CCR &= ~I2C_CCR_FS;
 
-		// Configuramos el registro que se encarga de generar la señal del reloj
-		ptrHandlerI2C->ptrI2Cx->CCR |= (I2C_MODE_SM_SPEED_100KHz << I2C_CCR_CCR_Pos);
+		// Genera señal de reloj
+		ptrHandlerI2C->ptrI2Cx->CCR |= (ptrHandlerI2C->modeI2C_SM << I2C_CCR_CCR_Pos);
 
-		// Configuramos el registro que controla el tiempo T-Rise máximo
-		ptrHandlerI2C->ptrI2Cx->TRISE |= I2C_MAX_RISE_TIME_SM;
+		// Controla el tiempo
+		ptrHandlerI2C->ptrI2Cx->TRISE |= (ptrHandlerI2C->maxI2C_SM);
 	}
 	else{
-		// Estamos en modo "Fast" (FM mode)
-		// Seleccioamos el modo Fast
+		// Fast mode FM
 		ptrHandlerI2C->ptrI2Cx->CCR |= I2C_CCR_FS;
 
 		// Configuramos el registro que se encarga de generar la señal del reloj
-		ptrHandlerI2C->ptrI2Cx->CCR |= (I2C_MODE_FM_SPEED_400KHz  << I2C_CCR_CCR_Pos);
+		ptrHandlerI2C->ptrI2Cx->CCR |= (ptrHandlerI2C->modeI2C_FM << I2C_CCR_CCR_Pos);
 
-		// Configuramos el registro que controla el tiempo T-Rise máximo
-		ptrHandlerI2C->ptrI2Cx->TRISE |=I2C_MAX_RISE_TIME_FM;
-
+		// Controla el tiempo t-rise máximo
+		ptrHandlerI2C->ptrI2Cx->TRISE |= (ptrHandlerI2C->maxI2C_FM);
 	}
-
 	/* 5. Activamos el módulo I2C */
 	ptrHandlerI2C->ptrI2Cx->CR1 |= I2C_CR1_PE;
 }
@@ -81,6 +103,13 @@ void i2c_config(I2C_Handler_t *ptrHandlerI2C){
 /* 2. Generamos la señal "start" */
 /* 2a. Esperamos a que la bandera del evento "start" se levante */
 /*Mientras esperamos, el valor de SB es 0, entonces la negación (!) es 1*/
+/* 8. Generamos la condición de stop */
+
+void i2c_stopTransaction(I2C_Handler_t *ptrHandlerI2C){
+	/* 7. Generamos la condición de stop */
+	ptrHandlerI2C->ptrI2Cx->CR1 |= I2C_CR1_STOP;
+}
+
 void i2c_startTransaction(I2C_Handler_t *ptrHandlerI2C){
 	/* 1. Verificamos que la línea no está ocupada - bit "busy" en I2C_CR2 */
 	while((ptrHandlerI2C->ptrI2Cx->SR2 & I2C_SR2_BUSY)){
@@ -97,11 +126,6 @@ void i2c_startTransaction(I2C_Handler_t *ptrHandlerI2C){
 	}
 }
 
-/* 8. Generamos la condición de stop */
-void i2c_stopTransaction(I2C_Handler_t *ptrHandlerI2C){
-	/* 7. Generamos la condición de stop */
-	ptrHandlerI2C->ptrI2Cx->CR1 |= I2C_CR1_STOP;
-}
 
 /**/
 void i2c_reStartTransaction(I2C_Handler_t *ptrHandlerI2C){
