@@ -454,7 +454,7 @@ void initLCD(void){
 	LCD_setCursor(&handlerLCD, 2, 16);
 	LCD_sendSTR(&handlerLCD, "m/s2");
 	LCD_setCursor(&handlerLCD, 3, 0);
-	LCD_sendSTR(&handlerLCD, "OFSZ MAX 250mg");
+	LCD_sendSTR(&handlerLCD, "OFSZMAX250mg");
 
 }
 
