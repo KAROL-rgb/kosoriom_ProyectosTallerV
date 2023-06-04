@@ -141,32 +141,32 @@ void USART_Config(USART_Handler_t *ptrUsartHandler){
 //	}
 
 	//2.5 COnfiguración del Baudrate para Frec = 80MHz;
-	if(getConfigPLL()== FRECUENCY_80MHz){
-		if(ptrUsartHandler->USART_Config.USART_baudrate == USART_BAUDRATE_9600){
-			// El valor a cargar es 520.8333-> Mantiza = 520 = 0x208;
-			// Fracción = 0.833 * 16 = 13 = 0xD
-			// El valor a cargar es 0x208D
-			ptrUsartHandler->ptrUSARTx->BRR = 0x208D;
-		}
-		else if(ptrUsartHandler->USART_Config.USART_baudrate == USART_BAUDRATE_19200){
-			// El valor a cargar es 260.417-> Mantiza = 260 = 0x104;
-			// Fracción = 0.417 * 16 = 7 = 0x7
-			// El valor a cargar es 0x1047
-			ptrUsartHandler->ptrUSARTx->BRR = 0x1047;
-		}
-		else if(ptrUsartHandler->USART_Config.USART_baudrate == USART_BAUDRATE_115200){
-			// El valor a cargar es 43.4028-> Mantiza = 43 = 0x2B;
-			// Fracción = 0.4028 * 16 = 7 = 0x7
-			// El valor a cargar es 0x2B7
-			ptrUsartHandler->ptrUSARTx->BRR = 0x2B7;
-		}
-
-	}
+//	if(getConfigPLL()== FRECUENCY_80MHz){
+//		if(ptrUsartHandler->USART_Config.USART_baudrate == USART_BAUDRATE_9600){
+//			// El valor a cargar es 520.8333-> Mantiza = 520 = 0x208;
+//			// Fracción = 0.833 * 16 = 13 = 0xD
+//			// El valor a cargar es 0x208D
+//			ptrUsartHandler->ptrUSARTx->BRR = 0x208D;
+//		}
+//		else if(ptrUsartHandler->USART_Config.USART_baudrate == USART_BAUDRATE_19200){
+//			// El valor a cargar es 260.417-> Mantiza = 260 = 0x104;
+//			// Fracción = 0.417 * 16 = 7 = 0x7
+//			// El valor a cargar es 0x1047
+//			ptrUsartHandler->ptrUSARTx->BRR = 0x1047;
+//		}
+//		else if(ptrUsartHandler->USART_Config.USART_baudrate == USART_BAUDRATE_115200){
+//			// El valor a cargar es 43.4028-> Mantiza = 43 = 0x2B;
+//			// Fracción = 0.4028 * 16 = 7 = 0x7
+//			// El valor a cargar es 0x2B7
+//			ptrUsartHandler->ptrUSARTx->BRR = 0x2B7;
+//		}
+//
+//	}
 
 //	 2.6 Configuracion del Baudrate (SFR USART_BRR)
 //	 Ver tabla de valores (Tabla 73), Frec = 16MHz, overr = 0;
 //
-		else if (getConfigPLL()== FRECUENCY_16MHz){
+//		else if (getConfigPLL()== FRECUENCY_16MHz){
 
 		if(ptrUsartHandler->USART_Config.USART_baudrate == USART_BAUDRATE_9600){
 			// El valor a cargar es 104.1875 -> Mantiza = 104,fraction = 0.1875
@@ -191,7 +191,7 @@ void USART_Config(USART_Handler_t *ptrUsartHandler){
 			ptrUsartHandler->ptrUSARTx->BRR = 0x08B;
 		}
 
-	}
+//	}
 
 	// 2.7 Configuramos el modo: TX only, RX only, RXTX, disable
 	switch(ptrUsartHandler->USART_Config.USART_mode){

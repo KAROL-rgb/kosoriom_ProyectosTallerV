@@ -365,29 +365,29 @@ void clean(void){
 	MatrixLedMod4(0x08, 0b00000000);
 
 }
-char* binaryToHex(const char* binary) {
-    int binaryLen = strlen(binary);
-    int hexLen = (binaryLen + 3) / 4;  // Calculate the length of the hexadecimal string
-    char* hex = (char*)malloc(hexLen + 1);  // Allocate memory for the hexadecimal string
-    hex[hexLen] = '\0';  // Null-terminate the string
-
-    int i, j, k;
-    for (i = binaryLen - 1, j = hexLen - 1; i >= 0 && j >= 0; i -= 4, j--) {
-        int decimal = 0;
-        for (k = 0; k < 4; k++) {
-            if (binary[i - k] == '1') {
-                decimal += (1 << k);
-            }
-        }
-        if (decimal < 10) {
-            hex[j] = decimal + '0';
-        } else {
-            hex[j] = decimal - 10 + 'A';
-        }
-    }
-
-    return hex;
-}
+//char* binaryToHex(const char* binary) {
+//    int binaryLen = strlen(binary);
+//    int hexLen = (binaryLen + 3) / 4;  // Calculate the length of the hexadecimal string
+//    char* hex = (char*)malloc(hexLen + 1);  // Allocate memory for the hexadecimal string
+//    hex[hexLen] = '\0';  // Null-terminate the string
+//
+//    int i, j, k;
+//    for (i = binaryLen - 1, j = hexLen - 1; i >= 0 && j >= 0; i -= 4, j--) {
+//        int decimal = 0;
+//        for (k = 0; k < 4; k++) {
+//            if (binary[i - k] == '1') {
+//                decimal += (1 << k);
+//            }
+//        }
+//        if (decimal < 10) {
+//            hex[j] = decimal + '0';
+//        } else {
+//            hex[j] = decimal - 10 + 'A';
+//        }
+//    }
+//
+//    return hex;
+//}
 
 int main(void){
 
@@ -395,15 +395,15 @@ int main(void){
 	Serial_Configuration();
 	clean();
 
-	const char* binary = "11011000";
-	char* hex = binaryToHex(binary);
-    free(hex);  // Remember to free the allocated memory
+//	const char* binary = "11011000";
+//	char* hex = binaryToHex(binary);
+//    free(hex);  // Remember to free the allocated memory
 
 
-	//writeModule3(0x02,0xFF);
+//	writeModule3(0x02,0xFF);
 //	MatrixLedMod3(0x02, 0x01);
 //	MatrixLedMod4(0x02, 0x01);
-	//MatrixLedMod2(0x02, 0x01);
+//	MatrixLedMod2(0x02, 0x01);
     //+++++++++++++++++++++
 //	MatrixLedMod1(0x01, 0x31);
 //	MatrixLedMod1(0x02, 0x33);
@@ -413,7 +413,29 @@ int main(void){
 //	MatrixLedMod1(0x06, 0x88);
 //	MatrixLedMod1(0x07, 0xD8);
 //	MatrixLedMod1(0x08, 0x50);
-    MatrixLedMod1(0x07, hex);
+	// Para mostrar la T
+//	MatrixLedMod1(0x03, 0x01);
+//	MatrixLedMod1(0x04, 0x03);
+//	MatrixLedMod1(0x05, 0x01);
+
+	// Para mostrar la L izquierda
+//	MatrixLedMod1(0x03, 0x04);
+//	MatrixLedMod1(0x04, 0x07);
+
+	// Para mostrar la L derecha
+//	MatrixLedMod1(0x04, 0x04);
+//	MatrixLedMod1(0x03, 0x07);
+
+	// Para mostrar la S hacia la izquierda
+	MatrixLedMod1(0x02, 0x01);
+	MatrixLedMod1(0x03, 0x03);
+	MatrixLedMod1(0x04, 0x02);
+
+	// Para mostrar S hacia la derecha
+
+
+
+
 
 	while(1){
 

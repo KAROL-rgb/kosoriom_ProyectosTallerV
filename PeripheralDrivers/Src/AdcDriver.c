@@ -28,7 +28,8 @@ void adc_Config(ADC_Config_t *adcConfig){
 	case ADC_RESOLUTION_12_BIT:
 	{
 		// Escriba su código acá
-		ADC1->CR1 &= ~ADC_CR1_RES;
+		ADC1->CR1 &= ~ADC_CR1_RES_0;
+
 		// Escriba su código acá
 		break;
 	}
@@ -119,7 +120,7 @@ void adc_Config(ADC_Config_t *adcConfig){
 
 	/* 11b. Configuramos la prioridad para la interrupción ADC */
 	// Escriba su código acá
-	__NVIC_SetPriority(ADC_IRQn,3);
+	__NVIC_SetPriority(ADC_IRQn,6);
 
 	/* 12. Activamos el modulo ADC */
 	// Escriba su código acá
@@ -144,7 +145,7 @@ void startSingleADC(void){
 
 	/* Limpiamos el bit del overrun (CR1) */
 	// Escriba su código acá
-	ADC1->CR1 &= ~ (ADC_CR1_OVRIE);
+	ADC1->SR &= ~ (ADC_SR_OVR);
 
 	/* Iniciamos un ciclo de conversión ADC (CR2)*/
 	// Escriba su código acá
