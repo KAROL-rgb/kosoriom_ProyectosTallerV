@@ -9,7 +9,8 @@
 #define PLLDRIVER_H_
 
 #define FRECUENCY_16MHz   0
-#define FRECUENCY_80MHz   1
+//#define FRECUENCY_80MHz 1
+#define FRECUENCY_100MHz  1
 
 typedef struct{
 	uint8_t    frecSpeed;

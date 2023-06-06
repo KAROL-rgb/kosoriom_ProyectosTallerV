@@ -7,6 +7,7 @@
 
 #include "AdcDriver.h"
 #include "GPIOxDriver.h"
+#include "PLLDriver.h"
 
 GPIO_Handler_t handlerAdcPin = {0};
 uint16_t	adcRawData = 0;
@@ -66,13 +67,13 @@ void adc_Config(ADC_Config_t *adcConfig){
 
 	/* 4. Configuramos el modo Scan como desactivado */
 	// Escriba su código acá
-	ADC1->CR1 &= ~ ADC_CR1_SCAN;
+	ADC1->CR1 &= ~ (ADC_CR1_SCAN);
 
 	/* 5. Configuramos la alineación de los datos (derecha o izquierda) */
 	if(adcConfig->dataAlignment == ADC_ALIGNMENT_RIGHT){
 		// Alineación a la derecha (esta es la forma "natural")
 		// Escriba su código acá
-		ADC1->CR2 &=~ ADC_CR2_ALIGN;
+		ADC1->CR2 &=~ (ADC_CR2_ALIGN);
 
 	}
 	else{
@@ -84,10 +85,10 @@ void adc_Config(ADC_Config_t *adcConfig){
 
 	/* 6. Desactivamos el "continuos mode" */
 	// Escriba su código acá
-	ADC1->CR2 &= ~ ADC_CR2_CONT;
+	ADC1->CR2 &= ~ (ADC_CR2_CONT);
 
 	/* 7. Acá se debería configurar el sampling...*/
-	if(adcConfig->channel < ADC_CHANNEL_9){
+	if(adcConfig->channel <= ADC_CHANNEL_9){
 		// Escriba su código acá
 		ADC1->SMPR2 |= (adcConfig-> samplingPeriod << (3*(adcConfig->channel)));
 	}
@@ -145,7 +146,7 @@ void startSingleADC(void){
 
 	/* Limpiamos el bit del overrun (CR1) */
 	// Escriba su código acá
-	ADC1->SR &= ~ (ADC_SR_OVR);
+	ADC1->CR1 &= ~ (ADC_CR1_OVRIE);
 
 	/* Iniciamos un ciclo de conversión ADC (CR2)*/
 	// Escriba su código acá
@@ -192,7 +193,7 @@ void ADC_IRQHandler(void){
 		// Leemos el resultado de la conversión ADC y lo cargamos en una variale auxiliar
 		// la cual es utilizada en la función getADC()
 		// Escriba su código acá
-		adcRawData |= ADC1->DR;
+		adcRawData = (uint16_t)ADC1->DR;
 
 		// Hacemos el llamado a la función que se ejecutará en el main
 		adcComplete_Callback();
@@ -355,4 +356,126 @@ void configAnalogPin(uint8_t adcChannel) {
 	// carga la configuración con el driver del GPIOx
 	handlerAdcPin.GPIO_PinConfig.GPIO_PinMode = GPIO_MODE_ANALOG;
 	GPIO_Config(&handlerAdcPin);
+}
+
+void ADC_ConfigMultichannel (ADC_Config_t *adcConfig, uint8_t numeroDeCanales){
+	/* 1. Configuramos el Pin   como canal análogo  */
+	for (uint8_t j = 0; j < numeroDeCanales; j++){
+		configAnalogPin(adcConfig->multiChannels[j]);
+	}
+	// Activamos la señal de reloj para el periférico
+	RCC->APB2ENR |= RCC_APB2ENR_ADC1EN;
+
+	// Limpiamos los registros antes de comenzar a configurar
+	ADC1->CR1 = 0;
+	ADC1->CR2 = 0;
+
+	/* Comenzamos la configuración del ADC1 */
+	/* Resolución del ADC */
+	switch(adcConfig->resolution){
+
+	case ADC_RESOLUTION_12_BIT:
+	{
+		ADC1->CR1 &= ~(ADC_CR1_RES);
+
+		break;
+	}
+	case ADC_RESOLUTION_10_BIT:
+	{
+		ADC1->CR1 |= ADC_CR1_RES_0;
+		ADC1->CR1 &= ~ADC_CR1_RES_1;
+
+		break;
+	}
+	case ADC_RESOLUTION_8_BIT:
+	{
+		ADC1->CR1 &= ~(ADC_CR1_RES_0);
+		ADC1->CR1 |= ADC_CR1_RES_1;
+
+		break;
+	}
+	case ADC_RESOLUTION_6_BIT:
+	{
+		ADC1->CR1 |= ADC_CR1_RES_0;
+		ADC1->CR1 |= ADC_CR1_RES_1;
+
+		break;
+	}
+	default:
+	{
+		break;
+	}
+	}
+	/* Activamos el modo Scan */
+	ADC1->CR1 |= (ADC_CR1_SCAN);
+
+	// Configuramos la alineación de los datos
+	if(adcConfig->dataAlignment == ADC_ALIGNMENT_RIGHT){
+		// La alineación a la derecha es la forma por defecto
+		ADC1->CR2 &= ~(ADC_CR2_ALIGN);
+	}
+	else{
+		// Alineación a la izquierda
+		ADC1->CR2 |= ADC_CR2_ALIGN;
+	}
+	// Desactivamos el modo continuo
+	ADC1->CR2 &= ~(ADC_CR2_CONT);
+
+	/* Configuración del sampling */
+	for(uint8_t k = 0; k < NUMBER_CHANNELS; k++){
+
+		if(adcConfig->multiChannels[k] <= ADC_CHANNEL_9){
+
+			ADC1->SMPR2 |= (adcConfig->samplingPeriod) << (0x3*adcConfig->multiChannels[k]);
+		}
+		else{
+			ADC1->SMPR1 |= (adcConfig->samplingPeriod) << (0x3*adcConfig->multiChannels[k] - 10);
+		}
+	}
+	/* Seleccionamos la secuencia y los elementos que hay en ella */
+	ADC1->SQR1 = ((numeroDeCanales-1) << ADC_SQR1_L_Pos);
+
+	for(uint8_t k = 0; k < numeroDeCanales; k++){
+		if(k <= 5){
+			ADC1->SQR3 |= (adcConfig->multiChannels[k] << 5 * k);
+		}
+		else if((k <= 11) & (k > 5)){
+			ADC1->SQR2 |= (adcConfig->multiChannels[k] << 5 * (k - 6));
+		}
+		else if(k <= 15){
+			ADC1->SQR1 |= (adcConfig->multiChannels[k] << 5 * (k - 12));
+		}
+	}
+
+	// Activamos las interrupciones cada fin de secuencia
+	ADC1->CR2 |= ADC_CR2_EOCS;
+
+	/* Configuramos el prescaler del ADC en 2:1 */
+	if(getConfigPLL()== FRECUENCY_100MHz){
+		ADC->CCR &= ~(ADC_CCR_ADCPRE_0);
+		ADC->CCR |= (0b01 << ADC_CCR_ADCPRE_Pos);
+	}
+	else{
+		ADC->CCR |= ADC_CCR_ADCPRE_0;
+	}
+
+	/* Desactivamos las interrupciones globales */
+	__disable_irq();
+
+	/* Activamos la interrupción debida a la finalización de una conversión EOC*/
+	ADC1->CR1 |= ADC_CR1_EOCIE;
+
+	/* Matriculamos la interrupción en el NVIC */
+	__NVIC_EnableIRQ(ADC_IRQn);
+
+	/* Configuramos la prioridad para la interrupción ADC */
+	__NVIC_SetPriority(ADC_IRQn, 4);
+
+	/* Activamos el módulo ADC */
+	ADC1->CR2 |= ADC_CR2_ADON;
+
+	/* Activamos las interrupciones globales */
+	__enable_irq();
+
+
 }

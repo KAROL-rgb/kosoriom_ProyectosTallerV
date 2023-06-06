@@ -13,23 +13,28 @@
 void PLL_Config(PLL_Handler_t *ptrPLL_Handler){
 
 	RCC->PLLCFGR &= ~RCC_PLLCFGR_PLLSRC;
+
+	// Habilitar HSI
+	RCC->CR |= RCC_CR_HSION;
+//	while(!(RCC_CR & RCC_CR_HSIRDY));
+
 	/* Se configura el voltaje PWR, dependiendo de la frecuencia con la que trabaje */
 	if(ptrPLL_Handler->frecSpeed == FRECUENCY_16MHz){
 		RCC->CFGR &= ~RCC_CFGR_SW;
 	}
-	else if(ptrPLL_Handler->frecSpeed == FRECUENCY_80MHz){
+	else if(ptrPLL_Handler->frecSpeed == FRECUENCY_100MHz){
 
 		RCC->AHB1ENR |= RCC_APB1ENR_PWREN;
 
 		PWR->CR &=~(PWR_CR_VOS);
-		PWR->CR |= (2<<PWR_CR_VOS_Pos);
+		PWR->CR |= (1<<PWR_CR_VOS_Pos);
 
 		/* 1. Programe el nuevo número de estados de espera en los bits LATENCY en FLASH_ACR
 					 * registro  */
 
 		FLASH->ACR |= FLASH_ACR_ICEN | FLASH_ACR_DCEN | FLASH_ACR_PRFTEN;
 		FLASH->ACR &= ~(FLASH_ACR_LATENCY);
-		FLASH->ACR |= (FLASH_ACR_LATENCY_2WS);
+		FLASH->ACR |= (FLASH_ACR_LATENCY_3WS);
 
 		// Limpieza
 		RCC->PLLCFGR &= ~RCC_PLLCFGR_PLLN;
@@ -37,18 +42,18 @@ void PLL_Config(PLL_Handler_t *ptrPLL_Handler){
 		RCC->PLLCFGR &= ~RCC_PLLCFGR_PLLP;
 
 
-		/* Se configura el valor que se quiere obtener, en este caso 80MHz
+		/* Se configura el valor que se quiere obtener, en este caso 100MHz
 			 * f(VCO clock)  = 16MHz * (PLLN/PLLM)
-			 * Se toma el factor de multiplicación PLLN = 80MHz  */
+			 * Se toma el factor de multiplicación PLLN = 100MHz  */
 
 		RCC->PLLCFGR &= ~(RCC_PLLCFGR_PLLN);
-		RCC->PLLCFGR |= (80 << RCC_PLLCFGR_PLLN_Pos);
+		RCC->PLLCFGR |= (100 << RCC_PLLCFGR_PLLN_Pos);
 		/* Luego se configura el factor de división PLLM = 2MHz  */
 		RCC->PLLCFGR &= ~(RCC_PLLCFGR_PLLM);
 		RCC->PLLCFGR |= (2 << RCC_PLLCFGR_PLLM_Pos);
 
 		/* f(Clock output) = f(VCO clock) / PLLP
-		 * La frecuencia deseada es 80MHz, entonces el PLLP = 8 */
+		 * La frecuencia deseada es 100MHz, entonces el PLLP = 8 */
 
 		RCC->PLLCFGR &= ~(RCC_PLLCFGR_PLLP);
 		RCC->PLLCFGR |= (3 << RCC_PLLCFGR_PLLP_Pos);
@@ -110,7 +115,7 @@ uint32_t getConfigPLL(void){
 //	uint32_t PLLN = (RCC->PLLCFGR & RCC_PLLCFGR_PLLN) >> (RCC_PLLCFGR_PLLN_Pos);
 
 	if(RCC->CFGR & RCC_CR_PLLON){
-		var = (FRECUENCY_80MHz);
+		var = (FRECUENCY_100MHz);
 	}
 	else{
 		var  = FRECUENCY_16MHz;
