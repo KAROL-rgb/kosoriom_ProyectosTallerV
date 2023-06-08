@@ -9,14 +9,9 @@
 #include "PLLDriver.h"
 
 
-
 void PLL_Config(PLL_Handler_t *ptrPLL_Handler){
 
 	RCC->PLLCFGR &= ~RCC_PLLCFGR_PLLSRC;
-
-	// Habilitar HSI
-	RCC->CR |= RCC_CR_HSION;
-//	while(!(RCC_CR & RCC_CR_HSIRDY));
 
 	/* Se configura el voltaje PWR, dependiendo de la frecuencia con la que trabaje */
 	if(ptrPLL_Handler->frecSpeed == FRECUENCY_16MHz){
@@ -82,13 +77,18 @@ void PLL_Config(PLL_Handler_t *ptrPLL_Handler){
 		RCC->CFGR |= (RCC_CFGR_MCO1_0);
 		RCC->CFGR |= (RCC_CFGR_MCO1_1);
 
-		// Se va a dividir por 5 para que la frecuencia mostrada en el osciloscopio sea de 20MHz
+		/* Limpiamos el registro para la configuración del MCO1 */
 		RCC->CFGR &= ~(RCC_CFGR_MCO1PRE);
-		RCC->CFGR |= (RCC_CFGR_MCO1PRE_0);
-		RCC->CFGR |= (RCC_CFGR_MCO1PRE_1);
-		RCC->CFGR |= (RCC_CFGR_MCO1PRE_2);
 
+		/* Configuración del prescaler para el MCO1*/
+		RCC->CFGR |= RCC_CFGR_MCO1;
 
+		RCC->CFGR &= ~(RCC_CFGR_MCO1PRE_0);
+
+		RCC->CFGR |= (ptrPLL_Handler->MCO1PRE << RCC_CFGR_MCO1PRE_Pos);
+
+//		RCC->CFGR |= (RCC_CFGR_MCO1PRE_1);
+//		RCC->CFGR |= (RCC_CFGR_MCO1PRE_2);
 
 		/* Finalmente se activa el PLL */
 		RCC->CR |= RCC_CR_PLLON;
@@ -102,10 +102,24 @@ void PLL_Config(PLL_Handler_t *ptrPLL_Handler){
 		RCC->CFGR |= RCC_CFGR_SW_PLL;
 
 	}
+
+
 //	RCC->CFGR &= ~ (RCC_CFGR_SW);
 //	RCC->CFGR &= RCC_CFGR_SW_1;
 
 }
+/* Función para seleccionar la señal del reloj */
+	void signalClock(PLL_Handler_t *ptrfrecSpeed, uint8_t clock){
+
+		RCC->CFGR = (clock << RCC_CFGR_MCO1_Pos);
+	}
+
+	/* Función para seleccionar el prescaler de la señal */
+	void signalPrescaler(PLL_Handler_t *ptrfrecSpeed, uint8_t preScaler ){
+
+		RCC->CFGR =(preScaler << RCC_CFGR_MCO1PRE_Pos);
+	}
+
 
 /* La siguiente función entrega el estado de la configuración del equipo para cuando está el PLL en ON
  * se entregará una frecuencia de 80MHz o de lo contrario será 16MHz */

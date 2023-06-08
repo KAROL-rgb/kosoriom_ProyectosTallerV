@@ -10,7 +10,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <math.h>
-
+#include <string.h>
 #include "stm32f4xx.h"
 
 #include "GPIOxDriver.h"
@@ -19,24 +19,42 @@
 #include "USARTxDriver.h"
 
 #include "AdcDriver.h"
+#include "PLLDriver.h"
 
-BasicTimer_Handler_t handlerStateOKTimer 			= {0};	// Timer2
+BasicTimer_Handler_t handlerTimer2 	= {0};	// Timer2
 
 USART_Handler_t handlerCommTerminal		= {0};	// Usart para la terminal en USART 2
 
 uint8_t 	rxData					= 0;				// Variable donde se guardarán los datos obtenidos por el RX
 
 void initSystem(void);
+void parseCommands(char *ptrBufferReception);
+
+GPIO_Handler_t 	handlerLedOK 		= {0};	// StateLED
+GPIO_Handler_t 	handlerPinTX 			= {0};	// handlerPinTX
+GPIO_Handler_t 	handlerPinRX 			= {0};	// handlerPinRX
+PLL_Handler_t handlerPLL = {0};
 
 ADC_Config_t channel_1				= {0};
 ADC_Config_t channel_2				= {0};
 
 char bufferData[128] = {0};
+
 uint8_t counterReception = 0;
-char bufferReception[128] ={0};
+char bufferReception[64] ={0};
 uint8_t stringComplete = 0;
 uint8_t autoUpdateLCD = 0;
-uint16_t userMsg = 0;
+char userMsg[64] = "Funciona";
+char cmd[16];
+unsigned int firstParameter;
+unsigned int secondParameter;
+
+// Definición para prescalers
+#define MCO1PRE_2    4
+#define MCO1PRE_3    5
+#define MCO1PRE_4    6
+#define MCO1PRE_5    7
+
 #define numberOfChannels	2
 uint8_t adcIsComplete		= 0;
 uint8_t adcCounter			= 0;
@@ -73,12 +91,65 @@ int main(void){
 			parseCommands(bufferReception);
 			stringComplete = false;
 		}
-		if(makeUpdateLCD){
-			updateLCD();
-			makeUpdateLCD = false;
-		}
+//		if(makeUpdateLCD){
+//			updateLCD();
+//			makeUpdateLCD = false;
+//		}
 
 	}
+}
+void initSystem(void){
+		handlerPLL.frecSpeed = FRECUENCY_100MHz;
+		PLL_Config(&handlerPLL);
+		//Configurando el pin para el Led Blinky
+		handlerLedOK.pGPIOx                              = GPIOH;
+		handlerLedOK.GPIO_PinConfig.GPIO_PinNumber       = PIN_1;
+		handlerLedOK.GPIO_PinConfig.GPIO_PinMode         = GPIO_MODE_OUT;
+		handlerLedOK.GPIO_PinConfig.GPIO_PinOPType       = GPIO_OTYPE_PUSHPULL;
+		handlerLedOK.GPIO_PinConfig.GPIO_PinSpeed        = GPIO_OSPEED_FAST;
+		handlerLedOK.GPIO_PinConfig.GPIO_PinPuPdControl  = GPIO_PUPDR_NOTHING;
+		GPIO_Config(&handlerLedOK);
+
+		//Llevamos el LED a un estado de encendido (ON o SET)
+		GPIO_WritePin(&handlerLedOK, SET);
+		handlerPinTX.pGPIOx									= GPIOA;
+		handlerPinTX.GPIO_PinConfig.GPIO_PinNumber			= PIN_9;
+		handlerPinTX.GPIO_PinConfig.GPIO_PinMode			= GPIO_MODE_ALTFN;
+		handlerPinTX.GPIO_PinConfig.GPIO_PinOPType			= GPIO_OTYPE_PUSHPULL;
+		handlerPinTX.GPIO_PinConfig.GPIO_PinPuPdControl		= GPIO_PUPDR_NOTHING;
+		handlerPinTX.GPIO_PinConfig.GPIO_PinSpeed			= GPIO_OSPEED_FAST;
+		handlerPinTX.GPIO_PinConfig.GPIO_PinAltFunMode		= AF7;
+
+		GPIO_Config(&handlerPinTX);
+
+		handlerPinRX.pGPIOx									= GPIOA;
+		handlerPinRX.GPIO_PinConfig.GPIO_PinNumber			= PIN_10;
+		handlerPinRX.GPIO_PinConfig.GPIO_PinMode			= GPIO_MODE_ALTFN;
+		handlerPinRX.GPIO_PinConfig.GPIO_PinOPType			= GPIO_OTYPE_PUSHPULL;
+		handlerPinRX.GPIO_PinConfig.GPIO_PinPuPdControl		= GPIO_PUPDR_NOTHING;
+		handlerPinRX.GPIO_PinConfig.GPIO_PinSpeed			= GPIO_OSPEED_FAST;
+		handlerPinRX.GPIO_PinConfig.GPIO_PinAltFunMode		= AF7;
+
+		GPIO_Config(&handlerPinRX);
+
+		// Configuración comunicación serial
+		handlerCommTerminal.ptrUSARTx                                 = USART1;
+		handlerCommTerminal.USART_Config.USART_baudrate               = USART_BAUDRATE_115200;
+		handlerCommTerminal.USART_Config.USART_datasize               = USART_DATASIZE_8BIT;
+		handlerCommTerminal.USART_Config.USART_parity                 = USART_PARITY_NONE;
+		handlerCommTerminal.USART_Config.USART_stopbits               = USART_STOPBIT_1;
+		handlerCommTerminal.USART_Config.USART_mode                   = USART_MODE_RXTX;
+		handlerCommTerminal.USART_Config.USART_enableIntRX            = ENABLE;
+		handlerCommTerminal.USART_Config.USART_enableIntTX            = DISABLE;
+		USART_Config(&handlerCommTerminal);
+
+		handlerTimer2.ptrTIMx								= TIM2;
+		handlerTimer2.TIMx_Config.TIMx_mode				    = BTIMER_MODE_UP;
+		handlerTimer2.TIMx_Config.TIMx_speed				= BTIMER_100MHz_SPEED_100us;
+		handlerTimer2.TIMx_Config.TIMx_period 				= 50;
+
+		BasicTimer_Config(&handlerTimer2);
+
 }
 void parseCommands(char *ptrBufferReception){
 
@@ -98,6 +169,38 @@ void parseCommands(char *ptrBufferReception){
 		writeMsg(&handlerCommTerminal, "5) testLcd -- simple Test for the LCD\n");
 		writeMsg(&handlerCommTerminal, "6) setPeriod # -- Change the Led_state period (us)\n");
 		writeMsg(&handlerCommTerminal, "7) autoUpdate # -- Automatic LCD update (# -> 1/0)\n");
+	}
+	/* Comandos para elegir la señal del MCO1 */
+	else if(strcmp(cmd, "selectClock") == 0){
+		if(firstParameter == 0){
+			updateClock(&handlerPLL, firstParameter);
+			writeMsg(&handlerCommTerminal, "HSI \n");
+		}else if(firstParameter == 1){
+			updateClock(&handlerPLL, firstParameter);
+			writeMsg(&handlerCommTerminal, "LSE \n");
+		}else if(firstParameter == 3){
+			updateClock(&handlerPLL, firstParameter);
+			writeMsg(&handlerCommTerminal, "PLL \n");
+		}else{
+			writeMsg(&handlerCommTerminal, "Wrong \n");
+		}
+	}
+	/* Comandos para seleccionar el prescaler de la señal en el MCO1 */
+	else if(strcmp(cmd, "selectPrescaler") == 0)
+	{
+		if(firstParameter ==  2){
+			updatePrescaler(&handlerPLL, MCO1PRE_2);
+			writeMsg(&handlerCommTerminal, "Division by 2 \n");
+		}else if(firstParameter == 3){
+			updatePrescaler(&handlerPLL, MCO1PRE_3);
+			writeMsg(&handlerCommTerminal, "Division by 3 \n");
+		}else if(firstParameter == 4){
+			updatePrescaler(&handlerPLL, MCO1PRE_4);
+			writeMsg(&handlerCommTerminal, "Division by 4 \n");
+		}else if(firstParameter == 5){
+			updatePrescaler(&handlerPLL, MCO1PRE_5);
+			writeMsg(&handlerCommTerminal, "Division by 5 \n");
+		}
 	}
 
 	// El comando dummy sirve para entender como funciona la recepción de números enviados
@@ -121,20 +224,6 @@ void parseCommands(char *ptrBufferReception){
 		writeMsg(&handlerCommTerminal, userMsg);
 		writeMsg(&handlerCommTerminal, "\n");
 	}
-	else if (strcmp(cmd, "initLcd") == 0){
-		writeMsg(&handlerCommTerminal, "CMD: initLcd\n");
-		lcd_init();
-
-	}
-	else if(strcmp(cmd, "clearLCD") == 0){
-		writeMsg(&handlerCommTerminal, "CMD: clearLcd\n");
-		lcd_clear();
-	}
-	else if(strcmp(cmd, "testLcd") == 0){
-		writeMsg(&handlerCommTerminal, "CMD: testLcd\n");
-
-		updateLCD();
-	}
 	else if(strcmp(cmd, "autoUpdate") == 0){
 		writeMsg(&handlerCommTerminal, "CMD: autoUpdate\n");
 		if(firstParameter != 0){
@@ -152,8 +241,8 @@ void parseCommands(char *ptrBufferReception){
 		if(firstParameter > 10000){
 			firstParameter = 10000;
 		}
-		handlerStateOKTimer.TIMx_Config.TIMx_period = firstParameter;
-		BasicTimer_Config(&handlerStateOKTimer);
+		handlerTimer2.TIMx_Config.TIMx_period = firstParameter;
+		BasicTimer_Config(&handlerTimer2);
 	}
 	else{
 		// Se imprime el mensaje "wrong CMD" si la escritura no corresponde a los CMD implementados
@@ -161,25 +250,27 @@ void parseCommands(char *ptrBufferReception){
 	}
 }
 
-void updateLCD(void){
-	if(updateValues){
-		lcd_moveCursor(1, 2);
-		lcd_write_msg("Testing LCD");
-		lcd_moveCursor(2, 0);
-		lcd_write_msg("ADC ch10 = ");
 
-		lcd_moveCUrsor(3, 0);
-		lcd_write_msg("ADC ch11 = ");
-
-		lcd_moveCursor(4, 0);
-		lcd_write_msg("ADC ch12 = ");
-	}
-}
-void usart2Rx_Callback(void){
+//void updateLCD(void){
+//	if(updateValues){
+//		lcd_moveCursor(1, 2);
+//		lcd_write_msg("Testing LCD");
+//		lcd_moveCursor(2, 0);
+//		lcd_write_msg("ADC ch10 = ");
+//
+//		lcd_moveCUrsor(3, 0);
+//		lcd_write_msg("ADC ch11 = ");
+//
+//		lcd_moveCursor(4, 0);
+//		lcd_write_msg("ADC ch12 = ");
+//	}
+//}
+void usart1Rx_Callback(void){
 	// Leemos el valor del registro DR, donde se almacena el dato que llega.
 	// Esro adempas debe bajar la bandera de la interrupción
 	rxData = getRXData();
 }
 void BasicTimer2_Callback(void){
 	// Hacemos un blinky, para indicar que el equipo está funcionando correctamente
+	GPIOxTooglePin(&handlerLedOK);
 }

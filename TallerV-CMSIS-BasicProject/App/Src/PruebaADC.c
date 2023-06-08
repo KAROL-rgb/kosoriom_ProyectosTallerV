@@ -151,8 +151,8 @@ void initSystem(void){
 //
 //	// Cargamos la configuración
 //	ADC_ConfigBiChannel(&channel_1,&channel_2);
-	adcConfig.numberOfChannel[0]   = ADC_CHANNEL_0;
-	adcConfig.numberOfChannel[1]   = ADC_CHANNEL_1;
+	adcConfig.multiChannels[0]   = ADC_CHANNEL_0;
+	adcConfig.multiChannels[1]   = ADC_CHANNEL_1;
 	adcConfig.dataAlignment 	   = ADC_ALIGNMENT_RIGHT;
 	adcConfig.resolution 		   = ADC_RESOLUTION_12_BIT;
 	adcConfig.samplingPeriod	   = ADC_SAMPLING_PERIOD_84_CYCLES;

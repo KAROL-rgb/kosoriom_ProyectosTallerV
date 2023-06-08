@@ -37,6 +37,9 @@ void initSystem(void);
 
 int main(void){
 
+	RCC->CR &= ~RCC_CR_HSITRIM;
+	RCC->CR |= (15 << RCC_CR_HSITRIM_Pos);
+
 	//Inicializamos todos los elementos del sistema
 	initSystem();
 
@@ -62,8 +65,8 @@ void initSystem(void){
 	//Configurando el Timer2 para que funcione con el blinky
 	handlerBlinkyTimer.ptrTIMx                           = TIM2;
 	handlerBlinkyTimer.TIMx_Config.TIMx_mode             = BTIMER_MODE_UP;
-	handlerBlinkyTimer.TIMx_Config.TIMx_speed            = BTIMER_100MHz_SPEED_100us;
-	handlerBlinkyTimer.TIMx_Config.TIMx_period           = 2500;
+	handlerBlinkyTimer.TIMx_Config.TIMx_speed            = 1000;
+	handlerBlinkyTimer.TIMx_Config.TIMx_period           = 25000;
 	handlerBlinkyTimer.TIMx_Config.TIMx_interruptEnable  = ENABLE;
 	BasicTimer_Config(&handlerBlinkyTimer);
 

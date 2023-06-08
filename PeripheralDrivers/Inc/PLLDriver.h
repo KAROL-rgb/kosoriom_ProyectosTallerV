@@ -12,9 +12,14 @@
 //#define FRECUENCY_80MHz 1
 #define FRECUENCY_100MHz  1
 
+#define HSI     0
+#define LSE     1
+#define HSE     2
+#define PLL     3
+
 typedef struct{
 	uint8_t    frecSpeed;
-
+	uint8_t    MCO1PRE;
 
 }PLL_Handler_t;
 
@@ -23,6 +28,7 @@ typedef struct{
 // Definicion de cabeceras para funciones del PLL
 void PLL_Config(PLL_Handler_t *ptrPLL_Handler);
 uint32_t getConfigPLL(void);
-
+void signalPrescaler(PLL_Handler_t *ptrfrecSpeed, uint8_t preScaler );
+void signalClock(PLL_Handler_t *ptrfrecSpeed, uint8_t clock);
 
 #endif /* PLLDRIVER_H_ */
