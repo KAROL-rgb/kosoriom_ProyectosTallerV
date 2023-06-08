@@ -173,13 +173,13 @@ void parseCommands(char *ptrBufferReception){
 	/* Comandos para elegir la señal del MCO1 */
 	else if(strcmp(cmd, "selectClock") == 0){
 		if(firstParameter == 0){
-			updateClock(&handlerPLL, firstParameter);
+			signalClock(&handlerPLL, firstParameter);
 			writeMsg(&handlerCommTerminal, "HSI \n");
 		}else if(firstParameter == 1){
-			updateClock(&handlerPLL, firstParameter);
+			signalClock(&handlerPLL, firstParameter);
 			writeMsg(&handlerCommTerminal, "LSE \n");
 		}else if(firstParameter == 3){
-			updateClock(&handlerPLL, firstParameter);
+			signalClock(&handlerPLL, firstParameter);
 			writeMsg(&handlerCommTerminal, "PLL \n");
 		}else{
 			writeMsg(&handlerCommTerminal, "Wrong \n");
@@ -189,18 +189,27 @@ void parseCommands(char *ptrBufferReception){
 	else if(strcmp(cmd, "selectPrescaler") == 0)
 	{
 		if(firstParameter ==  2){
-			updatePrescaler(&handlerPLL, MCO1PRE_2);
+			signalPrescaler(&handlerPLL, MCO1PRE_2);
 			writeMsg(&handlerCommTerminal, "Division by 2 \n");
 		}else if(firstParameter == 3){
-			updatePrescaler(&handlerPLL, MCO1PRE_3);
+			signalPrescaler(&handlerPLL, MCO1PRE_3);
 			writeMsg(&handlerCommTerminal, "Division by 3 \n");
 		}else if(firstParameter == 4){
-			updatePrescaler(&handlerPLL, MCO1PRE_4);
+			signalPrescaler(&handlerPLL, MCO1PRE_4);
 			writeMsg(&handlerCommTerminal, "Division by 4 \n");
 		}else if(firstParameter == 5){
-			updatePrescaler(&handlerPLL, MCO1PRE_5);
+			signalPrescaler(&handlerPLL, MCO1PRE_5);
 			writeMsg(&handlerCommTerminal, "Division by 5 \n");
 		}
+	}
+
+	/* Comandos para el RTC */
+	else if(strcmp(cmd, "selectDays") == 0)
+	{
+		if(RTC_Day <= 31){
+			writeMsg(&handlerCommTerminal, "Division by 3 \n");
+		}
+
 	}
 
 	// El comando dummy sirve para entender como funciona la recepción de números enviados
