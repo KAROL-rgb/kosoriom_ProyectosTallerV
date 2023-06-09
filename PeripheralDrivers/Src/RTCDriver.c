@@ -61,12 +61,12 @@ void RTC_Config(RTC_Handler_t *ptrHandlerRTC){
 	RTC-> DR |= (((ptrHandlerRTC->RTC_Years)/10) << RTC_DR_YT_Pos);
 	RTC-> DR |= (((ptrHandlerRTC->RTC_Years)%10) << RTC_DR_YU_Pos);
 
-	if(ptrHandlerRTC->RTC_Mounth <= 12){
+	if(ptrHandlerRTC->RTC_Mounth <= 12 && ptrHandlerRTC->RTC_Mounth >= 1){
 		RTC->DR |= (((ptrHandlerRTC->RTC_Mounth)/10) << RTC_DR_MT_Pos);
 		RTC->DR |= (((ptrHandlerRTC->RTC_Mounth)%10) << RTC_DR_MU_Pos);
 	}
 
-	if(ptrHandlerRTC->RTC_Day <= 31){
+	if(ptrHandlerRTC->RTC_Day <= 31 && ptrHandlerRTC->RTC_Day >=1){
 		RTC->DR |= (((ptrHandlerRTC->RTC_Day)/10) << RTC_DR_DT_Pos);
 		RTC->DR |= (((ptrHandlerRTC->RTC_Day)%10) << RTC_DR_DU_Pos);
 	}
@@ -82,26 +82,26 @@ uint8_t getDays(RTC_Handler_t ptrHandlerRTC){
 	uint8_t dataUnits = 0;
 
 	dataTens = RTC->DR & RTC_DR_DT;
-	dataTens <<= RTC->DR & RTC_DR_DT_Pos;
+	dataTens >>= RTC_DR_DT_Pos;
 
 	dataUnits = RTC->DR & RTC_DR_DU;
-	dataUnits <<= RTC-> DR & RTC_DR_DU_Pos;
+	dataUnits >>= RTC_DR_DU_Pos;
 
 	data = (dataTens*10) + dataUnits;
 
 	return data;
 
 }
-uint8_t getTime(RTC_Handler_t ptrHandlerRTC){
+uint8_t getHours(RTC_Handler_t ptrHandlerRTC){
 	uint8_t data = 0;
 	uint8_t dataTens = 0;
 	uint8_t dataUnits = 0;
 
 	dataTens = RTC->TR & RTC_TR_HT;
-	dataTens <<= RTC->TR & RTC_TR_HT_Pos;
+	dataTens >>= RTC_TR_HT_Pos;
 
 	dataUnits = RTC->TR & RTC_TR_HU;
-	dataUnits <<= RTC->TR & RTC_TR_HU_Pos;
+	dataUnits >>= RTC_TR_HU_Pos;
 
 	data = (dataTens*10) + dataUnits;
 
@@ -113,10 +113,10 @@ uint8_t getMounths(RTC_Handler_t ptrHandlerRTC){
 	uint8_t dataUnits = 0;
 
 	dataTens = RTC->DR & RTC_DR_MT;
-	dataTens <<= RTC->DR & RTC_DR_MT_Pos;
+	dataTens >>= RTC_DR_MT_Pos;
 
 	dataUnits = RTC->DR & RTC_DR_MU;
-	dataUnits <<= RTC->DR & RTC_DR_MU_Pos;
+	dataUnits >>= RTC_DR_MU_Pos;
 
 	data = (dataTens*10) + dataUnits;
 
@@ -128,10 +128,25 @@ uint8_t getSeconds(RTC_Handler_t ptrHandlerRTC){
 	uint8_t dataUnits = 0;
 
 	dataTens = RTC->TR & RTC_TR_ST;
-	dataTens = RTC->TR & RTC_TR_ST_Pos;
+	dataTens >>= RTC_TR_ST_Pos;
 
 	dataUnits = RTC->TR & RTC_TR_SU;
-	dataUnits = RTC->TR & RTC_TR_ST_Pos;
+	dataUnits >>= RTC_TR_SU_Pos;
+
+	data = (dataTens*10) + dataUnits;
+
+	return data;
+}
+uint8_t getMinutes(RTC_Handler_t ptrHandlerRTC){
+	uint8_t data = 0;
+	uint8_t dataTens = 0;
+	uint8_t dataUnits = 0;
+
+	dataTens = RTC->TR & RTC_TR_MNT;
+	dataTens >>= RTC_TR_MNT_Pos;
+
+	dataUnits = RTC->TR & RTC_TR_MNU;
+	dataUnits >>= RTC_TR_MNU_Pos;
 
 	data = (dataTens*10) + dataUnits;
 

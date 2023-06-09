@@ -4,6 +4,7 @@
  *  Created on: 23/05/2023
  *      Author: karol
  */
+#include "stm32f4xx.h"
 
 #ifndef PLLDRIVER_H_
 #define PLLDRIVER_H_
@@ -17,18 +18,27 @@
 #define HSE     2
 #define PLL     3
 
+// Definición para prescalers
+#define MCO1PRE_2    4
+#define MCO1PRE_3    5
+#define MCO1PRE_4    6
+#define MCO1PRE_5    7
+
 typedef struct{
 	uint8_t    frecSpeed;
 	uint8_t    MCO1PRE;
 
 }PLL_Handler_t;
 
-
+typedef struct{
+	uint8_t clock;
+	uint8_t preescaler;
+}MCO1_Handler_t;
 
 // Definicion de cabeceras para funciones del PLL
 void PLL_Config(PLL_Handler_t *ptrPLL_Handler);
 uint32_t getConfigPLL(void);
 void signalPrescaler(PLL_Handler_t *ptrfrecSpeed, uint8_t preScaler );
 void signalClock(PLL_Handler_t *ptrfrecSpeed, uint8_t clock);
-
+void configMCO1(MCO1_Handler_t *ptrHandlerMCO1);
 #endif /* PLLDRIVER_H_ */

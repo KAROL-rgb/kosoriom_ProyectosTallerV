@@ -141,7 +141,7 @@ void USART_Config(USART_Handler_t *ptrUsartHandler){
 //	}
 
 	//2.5 COnfiguración del Baudrate para Frec = 100MHz;
-	if(getConfigPLL()== FRECUENCY_100MHz){
+//	if(getConfigPLL()== FRECUENCY_100MHz){
 		if(ptrUsartHandler->USART_Config.USART_baudrate == USART_BAUDRATE_9600){
 			// El valor a cargar es 520.8333-> Mantiza = 520 = 0x208;
 			// Fracción = 0.833 * 16 = 13 = 0xD
@@ -161,37 +161,37 @@ void USART_Config(USART_Handler_t *ptrUsartHandler){
 			ptrUsartHandler->ptrUSARTx->BRR = 0x0364;
 		}
 
-	}
+//	}
 
 //	 2.6 Configuracion del Baudrate (SFR USART_BRR)
 //	 Ver tabla de valores (Tabla 73), Frec = 16MHz, overr = 0;
 //
-		else if (getConfigPLL()== FRECUENCY_16MHz){
-
-		if(ptrUsartHandler->USART_Config.USART_baudrate == USART_BAUDRATE_9600){
-			// El valor a cargar es 104.1875 -> Mantiza = 104,fraction = 0.1875
-			// Mantiza = 104 = 0x68, fraction = 16 * 0.1875 = 3
-			// Valor a cargar 0x0683
-			// Configurando el Baudrate generator para una velocidad de 9600bps
-			ptrUsartHandler->ptrUSARTx->BRR = 0x0683;
-		}
-
-		else if (ptrUsartHandler->USART_Config.USART_baudrate == USART_BAUDRATE_19200) {
-			// El valor a cargar es 52.0625 -> Mantiza = 52,fraction = 0.0625
-			// Mantiza = 52 = 0x34, fraction = 16 * 0.1875 = 1
-			// Escriba acá su código y los comentarios que faltan
-			ptrUsartHandler->ptrUSARTx->BRR = 0x0341;
-		}
-
-		else if(ptrUsartHandler->USART_Config.USART_baudrate == USART_BAUDRATE_115200){
-			// Escriba acá su código y los comentarios que faltan
-			// valor a cargar es de 8.6875
-			//Mantiza = 8 , fraction = 16* 0.6875 = 11 en hexadecimal es B
-			//Valor a cargar 0x811
-			ptrUsartHandler->ptrUSARTx->BRR = 0x08B;
-		}
-
-	}
+//		else if (getConfigPLL()== FRECUENCY_16MHz){
+//
+//		if(ptrUsartHandler->USART_Config.USART_baudrate == USART_BAUDRATE_9600){
+//			// El valor a cargar es 104.1875 -> Mantiza = 104,fraction = 0.1875
+//			// Mantiza = 104 = 0x68, fraction = 16 * 0.1875 = 3
+//			// Valor a cargar 0x0683
+//			// Configurando el Baudrate generator para una velocidad de 9600bps
+//			ptrUsartHandler->ptrUSARTx->BRR = 0x0683;
+//		}
+//
+//		else if (ptrUsartHandler->USART_Config.USART_baudrate == USART_BAUDRATE_19200) {
+//			// El valor a cargar es 52.0625 -> Mantiza = 52,fraction = 0.0625
+//			// Mantiza = 52 = 0x34, fraction = 16 * 0.1875 = 1
+//			// Escriba acá su código y los comentarios que faltan
+//			ptrUsartHandler->ptrUSARTx->BRR = 0x0341;
+//		}
+//
+//		else if(ptrUsartHandler->USART_Config.USART_baudrate == USART_BAUDRATE_115200){
+//			// Escriba acá su código y los comentarios que faltan
+//			// valor a cargar es de 8.6875
+//			//Mantiza = 8 , fraction = 16* 0.6875 = 11 en hexadecimal es B
+//			//Valor a cargar 0x811
+//			ptrUsartHandler->ptrUSARTx->BRR = 0x08B;
+//		}
+//
+//	}
 
 	// 2.7 Configuramos el modo: TX only, RX only, RXTX, disable
 	switch(ptrUsartHandler->USART_Config.USART_mode){

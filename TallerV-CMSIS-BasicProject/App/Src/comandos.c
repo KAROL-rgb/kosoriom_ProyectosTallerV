@@ -20,49 +20,52 @@
 
 #include "AdcDriver.h"
 #include "PLLDriver.h"
+#include "RTCDriver.h"
 
 BasicTimer_Handler_t handlerTimer2 	= {0};	// Timer2
-
 USART_Handler_t handlerCommTerminal		= {0};	// Usart para la terminal en USART 2
-
 uint8_t 	rxData					= 0;				// Variable donde se guardarán los datos obtenidos por el RX
-
-void initSystem(void);
-void parseCommands(char *ptrBufferReception);
 
 GPIO_Handler_t 	handlerLedOK 		= {0};	// StateLED
 GPIO_Handler_t 	handlerPinTX 			= {0};	// handlerPinTX
 GPIO_Handler_t 	handlerPinRX 			= {0};	// handlerPinRX
 PLL_Handler_t handlerPLL = {0};
+RTC_Handler_t handlerRTC = {0};
 
-ADC_Config_t channel_1				= {0};
-ADC_Config_t channel_2				= {0};
+//ADC_Config_t channel_1				= {0};
+//ADC_Config_t channel_2				= {0};
+ADC_Config_t adcConfig = {0};
+
+GPIO_Handler_t handlerPinMCO1               = {0};
+MCO1_Handler_t handlerMCO1 = {0};
 
 char bufferData[128] = {0};
-
-uint8_t counterReception = 0;
 char bufferReception[64] ={0};
-uint8_t stringComplete = 0;
-uint8_t autoUpdateLCD = 0;
 char userMsg[64] = "Funciona";
 char cmd[16];
+
+uint8_t counterReception = 0;
+uint8_t stringComplete = 0;
+uint8_t autoUpdateLCD = 0;
+
 unsigned int firstParameter;
 unsigned int secondParameter;
-
-// Definición para prescalers
-#define MCO1PRE_2    4
-#define MCO1PRE_3    5
-#define MCO1PRE_4    6
-#define MCO1PRE_5    7
 
 #define numberOfChannels	2
 uint8_t adcIsComplete		= 0;
 uint8_t adcCounter			= 0;
 uint16_t dataADC[numberOfChannels] = {0};
 
+void initSystem(void);
+void parseCommands(char *ptrBufferReception);
+
 int main(void){
 
+	RCC->CR &= ~RCC_CR_HSITRIM;
+	RCC->CR |= (15 << RCC_CR_HSITRIM_Pos);
+
 	initSystem();
+	writeMsg(&handlerCommTerminal, "\n~Iniciando Sistema~\n");
 
 	while(1){
 		// Creamos una cadena de caracteres con los datos que llegan por el serial
@@ -80,6 +83,8 @@ int main(void){
 				bufferReception[counterReception] = '\0';
 
 				counterReception = 0;
+				startSingleADC();
+
 			}
 
 			// Para que no vuelva a entrar. Solo cambia debido a la interrupción
@@ -91,10 +96,13 @@ int main(void){
 			parseCommands(bufferReception);
 			stringComplete = false;
 		}
-//		if(makeUpdateLCD){
-//			updateLCD();
-//			makeUpdateLCD = false;
-//		}
+		if(adcIsComplete == 1){
+		// Enviamos los datos por consola
+		sprintf(bufferData,"%u\t%u\n",dataADC[0],dataADC[1]);
+		writeMsg(&handlerCommTerminal, bufferData);
+		// Bajamos la bandera del ADC
+		adcIsComplete = 0;
+	}
 
 	}
 }
@@ -150,6 +158,26 @@ void initSystem(void){
 
 		BasicTimer_Config(&handlerTimer2);
 
+		/****Configuración para probar el MCO1 en el analizador de señales****/
+		handlerPinMCO1.pGPIOx                                = GPIOA;
+		handlerPinMCO1.GPIO_PinConfig.GPIO_PinNumber         = PIN_8;
+		handlerPinMCO1.GPIO_PinConfig.GPIO_PinMode           = GPIO_MODE_ALTFN;
+		handlerPinMCO1.GPIO_PinConfig.GPIO_PinOPType         = GPIO_OTYPE_PUSHPULL;
+		handlerPinMCO1.GPIO_PinConfig.GPIO_PinSpeed          = GPIO_OSPEED_FAST;
+		handlerPinMCO1.GPIO_PinConfig.GPIO_PinPuPdControl    = GPIO_PUPDR_NOTHING;
+		handlerPinMCO1.GPIO_PinConfig.GPIO_PinAltFunMode     = AF0;
+		GPIO_Config(&handlerPinMCO1);
+
+		/*** Configuración del canal ADC ***/
+		adcConfig.multiChannels[0]     = ADC_CHANNEL_0;
+		adcConfig.multiChannels[1]     = ADC_CHANNEL_1;
+		adcConfig.dataAlignment 	   = ADC_ALIGNMENT_RIGHT;
+		adcConfig.resolution 		   = ADC_RESOLUTION_12_BIT;
+		adcConfig.samplingPeriod[0]	   = ADC_SAMPLING_PERIOD_84_CYCLES;
+		adcConfig.samplingPeriod[1]	   = ADC_SAMPLING_PERIOD_84_CYCLES;
+		//Se carga la configuración del ADC
+		ADC_ConfigMultichannel(&adcConfig,2);
+
 }
 void parseCommands(char *ptrBufferReception){
 
@@ -170,45 +198,74 @@ void parseCommands(char *ptrBufferReception){
 		writeMsg(&handlerCommTerminal, "6) setPeriod # -- Change the Led_state period (us)\n");
 		writeMsg(&handlerCommTerminal, "7) autoUpdate # -- Automatic LCD update (# -> 1/0)\n");
 	}
-	/* Comandos para elegir la señal del MCO1 */
+//	/* Comandos para elegir la señal del MCO1 */
 	else if(strcmp(cmd, "selectClock") == 0){
 		if(firstParameter == 0){
-			signalClock(&handlerPLL, firstParameter);
-			writeMsg(&handlerCommTerminal, "HSI \n");
+			handlerMCO1.clock = firstParameter;
+			configMCO1(&handlerMCO1);
+			sprintf(bufferData, "MCO1 configura el HSI \n");
+			writeMsg(&handlerCommTerminal, bufferData);
 		}else if(firstParameter == 1){
-			signalClock(&handlerPLL, firstParameter);
-			writeMsg(&handlerCommTerminal, "LSE \n");
-		}else if(firstParameter == 3){
-			signalClock(&handlerPLL, firstParameter);
-			writeMsg(&handlerCommTerminal, "PLL \n");
-		}else{
-			writeMsg(&handlerCommTerminal, "Wrong \n");
+			handlerMCO1.clock = firstParameter;
+			configMCO1(&handlerMCO1);
+			sprintf(bufferData, "MCO1 configura el LSE \n");
+			writeMsg(&handlerCommTerminal, bufferData);
+		}else if(firstParameter == 2){
+			handlerMCO1.clock = firstParameter;
+			configMCO1(&handlerMCO1);
+			sprintf(bufferData, "MCO1 configura el PLL \n");
+			writeMsg(&handlerCommTerminal, bufferData);
 		}
 	}
 	/* Comandos para seleccionar el prescaler de la señal en el MCO1 */
 	else if(strcmp(cmd, "selectPrescaler") == 0)
 	{
-		if(firstParameter ==  2){
-			signalPrescaler(&handlerPLL, MCO1PRE_2);
-			writeMsg(&handlerCommTerminal, "Division by 2 \n");
-		}else if(firstParameter == 3){
-			signalPrescaler(&handlerPLL, MCO1PRE_3);
-			writeMsg(&handlerCommTerminal, "Division by 3 \n");
-		}else if(firstParameter == 4){
-			signalPrescaler(&handlerPLL, MCO1PRE_4);
-			writeMsg(&handlerCommTerminal, "Division by 4 \n");
-		}else if(firstParameter == 5){
-			signalPrescaler(&handlerPLL, MCO1PRE_5);
-			writeMsg(&handlerCommTerminal, "Division by 5 \n");
+		if(firstParameter < 6 && firstParameter > 1){
+			handlerMCO1.preescaler = firstParameter;
+			configMCO1(&handlerMCO1);
+			sprintf(bufferData, "MCO1 configura a %u \n", firstParameter);
+			writeMsg(&handlerCommTerminal, bufferData);
+		}
+		else{
+			writeMsg(&handlerCommTerminal, "Error en el comando ingresado");
 		}
 	}
 
 	/* Comandos para el RTC */
-	else if(strcmp(cmd, "selectDays") == 0)
+	// Configuración de la hora inicial
+	else if(strcmp(cmd, "initialHours") == 0)
 	{
-		if(RTC_Day <= 31){
-			writeMsg(&handlerCommTerminal, "Division by 3 \n");
-		}
+		writeMsg(&handlerCommTerminal, " Inicializacion time \n");
+		handlerRTC.RTC_Hours = firstParameter;
+		handlerRTC.RTC_Minutes = secondParameter;
+		handlerRTC.RTC_Seconds = 00;
+		RTC_Config(&handlerRTC);
+
+	}
+	/* Configuración fecha inicial */
+	else if(strcmp(cmd, "initalMounths") == 0){
+		writeMsg(&handlerCommTerminal, " Inicializacion date \n");
+		handlerRTC.RTC_Day = firstParameter;
+		handlerRTC.RTC_Mounth = secondParameter;
+		handlerRTC.RTC_Years = 23;
+		RTC_Config(&handlerRTC);
+	}
+	/* configuración hora actual */
+	else if(strcmp(cmd, "getHours") == 0){
+		writeMsg(&handlerCommTerminal, " Actual Hour \n");
+		uint8_t hours = getHours(handlerRTC);
+		uint8_t minutes = getMinutes(handlerRTC);
+		uint8_t seconds = getSeconds(handlerRTC);
+		sprintf(bufferData, "La hora es: %u : %u : %u \n", hours, minutes, seconds);
+		writeMsg(&handlerCommTerminal, bufferData);
+
+	}
+	else if(strcmp(cmd, "getMounths") == 0){
+		writeMsg(&handlerCommTerminal, " Actual date \n");
+		uint8_t days = getDays(handlerRTC);
+		uint8_t mounths = getMounths(handlerRTC);
+		sprintf(bufferData, "La fecha es: %u / %u / 2023 \n", days, mounths);
+		writeMsg(&handlerCommTerminal, bufferData);
 
 	}
 
@@ -223,7 +280,6 @@ void parseCommands(char *ptrBufferReception){
 		// Cambiando el formato para presentar el número por el puerto serial
 		sprintf(bufferData, "number B = %u \n", secondParameter);
 		writeMsg(&handlerCommTerminal, bufferData);
-
 	}
 
 	// El comando usermsg sirve para entender como funciona la recepción de strings enviados
@@ -282,4 +338,14 @@ void usart1Rx_Callback(void){
 void BasicTimer2_Callback(void){
 	// Hacemos un blinky, para indicar que el equipo está funcionando correctamente
 	GPIOxTooglePin(&handlerLedOK);
+}
+void adcComplete_Callback(void){
+	dataADC[adcCounter] = getADC();
+	if(adcCounter < (NUMBER_CHANNELS-1)){
+		adcCounter++;
+	}
+	else{
+		adcIsComplete = 1;
+		adcCounter = 0;
+	}
 }

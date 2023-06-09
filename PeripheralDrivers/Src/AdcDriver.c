@@ -85,17 +85,17 @@ void adc_Config(ADC_Config_t *adcConfig){
 
 	/* 6. Desactivamos el "continuos mode" */
 	// Escriba su código acá
-	ADC1->CR2 &= ~ (ADC_CR2_CONT);
-
-	/* 7. Acá se debería configurar el sampling...*/
-	if(adcConfig->channel <= ADC_CHANNEL_9){
-		// Escriba su código acá
-		ADC1->SMPR2 |= (adcConfig-> samplingPeriod << (3*(adcConfig->channel)));
-	}
-	else{
-		// Escriba su código acá
-		ADC1->SMPR1 |= (adcConfig-> samplingPeriod << (3*(adcConfig->channel)));
-	}
+//	ADC1->CR2 &= ~ (ADC_CR2_CONT);
+//
+//	/* 7. Acá se debería configurar el sampling...*/
+//	if(adcConfig->channel <= ADC_CHANNEL_9){
+//		// Escriba su código acá
+//		ADC1->SMPR2 |= (adcConfig-> samplingPeriod << (3*(adcConfig->channel)));
+//	}
+//	else{
+//		// Escriba su código acá
+//		ADC1->SMPR1 |= (adcConfig-> samplingPeriod << (3*(adcConfig->channel)));
+//	}
 
 	/* 8. Configuramos la secuencia y cuantos elementos hay en la secuencia */
 	// Al hacerlo todo 0, estamos seleccionando solo 1 elemento en el conteo de la secuencia
@@ -426,10 +426,10 @@ void ADC_ConfigMultichannel (ADC_Config_t *adcConfig, uint8_t numeroDeCanales){
 
 		if(adcConfig->multiChannels[k] <= ADC_CHANNEL_9){
 
-			ADC1->SMPR2 |= (adcConfig->samplingPeriod) << (0x3*adcConfig->multiChannels[k]);
+			ADC1->SMPR2 |= (adcConfig->samplingPeriod[k]) << (0x3*adcConfig->multiChannels[k]);
 		}
 		else{
-			ADC1->SMPR1 |= (adcConfig->samplingPeriod) << (0x3*adcConfig->multiChannels[k] - 10);
+			ADC1->SMPR1 |= (adcConfig->samplingPeriod[k]) << (0x3*adcConfig->multiChannels[k] - 10);
 		}
 	}
 	/* Seleccionamos la secuencia y los elementos que hay en ella */

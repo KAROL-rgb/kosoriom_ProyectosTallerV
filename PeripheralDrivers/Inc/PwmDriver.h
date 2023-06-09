@@ -18,6 +18,10 @@
 #define PWM_DUTTY_0_PERCENT    0
 #define PWM_DUTTY_100_PERCENT  100
 
+#define PWM_PRESCALER_100MHZ_1us  100
+#define PWM_PRESCALER_100MHZ_10us  1000
+#define PWM_PRESCALER_100MHZ_100us  10000
+
 /* */
 typedef struct
 {

@@ -73,22 +73,7 @@ void PLL_Config(PLL_Handler_t *ptrPLL_Handler){
 		/*** Lo siguiente es para probar con el osciloscopio u analizador de señales, para eso se debe activar un prescaler  ***/
 		// Se utiliza el registro MCO1: Microncontroller clock output 1
 
-		RCC->CFGR &= ~(RCC_CFGR_MCO1);
-		RCC->CFGR |= (RCC_CFGR_MCO1_0);
-		RCC->CFGR |= (RCC_CFGR_MCO1_1);
 
-		/* Limpiamos el registro para la configuración del MCO1 */
-		RCC->CFGR &= ~(RCC_CFGR_MCO1PRE);
-
-		/* Configuración del prescaler para el MCO1*/
-		RCC->CFGR |= RCC_CFGR_MCO1;
-
-		RCC->CFGR &= ~(RCC_CFGR_MCO1PRE_0);
-
-		RCC->CFGR |= (ptrPLL_Handler->MCO1PRE << RCC_CFGR_MCO1PRE_Pos);
-
-//		RCC->CFGR |= (RCC_CFGR_MCO1PRE_1);
-//		RCC->CFGR |= (RCC_CFGR_MCO1PRE_2);
 
 		/* Finalmente se activa el PLL */
 		RCC->CR |= RCC_CR_PLLON;
@@ -108,17 +93,80 @@ void PLL_Config(PLL_Handler_t *ptrPLL_Handler){
 //	RCC->CFGR &= RCC_CFGR_SW_1;
 
 }
-/* Función para seleccionar la señal del reloj */
-	void signalClock(PLL_Handler_t *ptrfrecSpeed, uint8_t clock){
-
-		RCC->CFGR = (clock << RCC_CFGR_MCO1_Pos);
+void configMCO1(MCO1_Handler_t *ptrHandlerMCO1){
+	if(ptrHandlerMCO1->clock == HSI){
+		RCC->CFGR &= ~RCC_CFGR_MCO1_0;
+		RCC->CFGR &= ~RCC_CFGR_MCO1_1;
+		if(ptrHandlerMCO1->preescaler == MCO1PRE_2){
+			RCC->CFGR &= ~RCC_CFGR_MCO1PRE_0;
+			RCC->CFGR &= ~RCC_CFGR_MCO1PRE_1;
+			RCC->CFGR |= RCC_CFGR_MCO1PRE_2;
+		}
+		else if(ptrHandlerMCO1->preescaler == MCO1PRE_3){
+			RCC->CFGR |= RCC_CFGR_MCO1PRE_0;
+			RCC->CFGR &= ~RCC_CFGR_MCO1PRE_1;
+			RCC->CFGR |= RCC_CFGR_MCO1PRE_2;
+		}
+		else if(ptrHandlerMCO1->preescaler == MCO1PRE_4){
+			RCC->CFGR &= ~RCC_CFGR_MCO1PRE_0;
+			RCC->CFGR |= RCC_CFGR_MCO1PRE_1;
+			RCC->CFGR |= RCC_CFGR_MCO1PRE_2;
+		}
+		else if(ptrHandlerMCO1->preescaler == MCO1PRE_5){
+			RCC->CFGR |= RCC_CFGR_MCO1PRE_0;
+			RCC->CFGR |= RCC_CFGR_MCO1PRE_1;
+			RCC->CFGR |= RCC_CFGR_MCO1PRE_2;
+		}
 	}
-
-	/* Función para seleccionar el prescaler de la señal */
-	void signalPrescaler(PLL_Handler_t *ptrfrecSpeed, uint8_t preScaler ){
-
-		RCC->CFGR =(preScaler << RCC_CFGR_MCO1PRE_Pos);
+	else if(ptrHandlerMCO1->clock == LSE){
+		RCC->CFGR |= RCC_CFGR_MCO1_0;
+		RCC->CFGR &= ~RCC_CFGR_MCO1_1;
+		if(ptrHandlerMCO1->preescaler == MCO1PRE_2){
+			RCC->CFGR &= ~RCC_CFGR_MCO1PRE_0;
+			RCC->CFGR &= ~RCC_CFGR_MCO1PRE_1;
+			RCC->CFGR |= RCC_CFGR_MCO1PRE_2;
+		}
+		else if(ptrHandlerMCO1->preescaler == MCO1PRE_3){
+			RCC->CFGR |= RCC_CFGR_MCO1PRE_0;
+			RCC->CFGR &= ~RCC_CFGR_MCO1PRE_1;
+			RCC->CFGR |= RCC_CFGR_MCO1PRE_2;
+		}
+		else if(ptrHandlerMCO1->preescaler == MCO1PRE_4){
+			RCC->CFGR &= ~RCC_CFGR_MCO1PRE_0;
+			RCC->CFGR |= RCC_CFGR_MCO1PRE_1;
+			RCC->CFGR |= RCC_CFGR_MCO1PRE_2;
+		}
+		else if(ptrHandlerMCO1->preescaler == MCO1PRE_5){
+			RCC->CFGR |= RCC_CFGR_MCO1PRE_0;
+			RCC->CFGR |= RCC_CFGR_MCO1PRE_1;
+			RCC->CFGR |= RCC_CFGR_MCO1PRE_2;
+		}
 	}
+	else if(ptrHandlerMCO1->clock == PLL){
+		RCC->CFGR |= RCC_CFGR_MCO1_0;
+		RCC->CFGR |= RCC_CFGR_MCO1_1;
+		if(ptrHandlerMCO1->preescaler == MCO1PRE_2){
+			RCC->CFGR &= ~RCC_CFGR_MCO1PRE_0;
+			RCC->CFGR &= ~RCC_CFGR_MCO1PRE_1;
+			RCC->CFGR |= RCC_CFGR_MCO1PRE_2;
+		}
+		else if(ptrHandlerMCO1->preescaler == MCO1PRE_3){
+			RCC->CFGR |= RCC_CFGR_MCO1PRE_0;
+			RCC->CFGR &= ~RCC_CFGR_MCO1PRE_1;
+			RCC->CFGR |= RCC_CFGR_MCO1PRE_2;
+		}
+		else if(ptrHandlerMCO1->preescaler == MCO1PRE_4){
+			RCC->CFGR &= ~RCC_CFGR_MCO1PRE_0;
+			RCC->CFGR |= RCC_CFGR_MCO1PRE_1;
+			RCC->CFGR |= RCC_CFGR_MCO1PRE_2;
+		}
+		else if(ptrHandlerMCO1->preescaler == MCO1PRE_5){
+			RCC->CFGR |= RCC_CFGR_MCO1PRE_0;
+			RCC->CFGR |= RCC_CFGR_MCO1PRE_1;
+			RCC->CFGR |= RCC_CFGR_MCO1PRE_2;
+		}
+	}
+}
 
 
 /* La siguiente función entrega el estado de la configuración del equipo para cuando está el PLL en ON
