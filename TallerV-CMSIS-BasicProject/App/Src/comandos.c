@@ -62,7 +62,7 @@ void parseCommands(char *ptrBufferReception);
 int main(void){
 
 	RCC->CR &= ~RCC_CR_HSITRIM;
-	RCC->CR |= (15 << RCC_CR_HSITRIM_Pos);
+	RCC->CR |= (13 << RCC_CR_HSITRIM_Pos);
 
 	initSystem();
 	writeMsg(&handlerCommTerminal, "\n~Iniciando Sistema~\n");
@@ -96,13 +96,13 @@ int main(void){
 			parseCommands(bufferReception);
 			stringComplete = false;
 		}
-		if(adcIsComplete == 1){
-		// Enviamos los datos por consola
-		sprintf(bufferData,"%u\t%u\n",dataADC[0],dataADC[1]);
-		writeMsg(&handlerCommTerminal, bufferData);
-		// Bajamos la bandera del ADC
-		adcIsComplete = 0;
-	}
+//		if(adcIsComplete == 1){
+//		// Enviamos los datos por consola
+//		sprintf(bufferData,"%u\t%u\n",dataADC[0],dataADC[1]);
+//		writeMsg(&handlerCommTerminal, bufferData);
+//		// Bajamos la bandera del ADC
+//		adcIsComplete = 0;
+//	}
 
 	}
 }
@@ -154,7 +154,7 @@ void initSystem(void){
 		handlerTimer2.ptrTIMx								= TIM2;
 		handlerTimer2.TIMx_Config.TIMx_mode				    = BTIMER_MODE_UP;
 		handlerTimer2.TIMx_Config.TIMx_speed				= BTIMER_100MHz_SPEED_100us;
-		handlerTimer2.TIMx_Config.TIMx_period 				= 50;
+		handlerTimer2.TIMx_Config.TIMx_period 				= 2500;
 
 		BasicTimer_Config(&handlerTimer2);
 
@@ -177,6 +177,15 @@ void initSystem(void){
 		adcConfig.samplingPeriod[1]	   = ADC_SAMPLING_PERIOD_84_CYCLES;
 		//Se carga la configuración del ADC
 		ADC_ConfigMultichannel(&adcConfig,2);
+
+		handlerRTC.RTC_Day = 9;
+		handlerRTC.RTC_Mounth = 11;
+		handlerRTC.RTC_Years  = 22;
+		handlerRTC.RTC_Hours = 8;
+		handlerRTC.RTC_Minutes = 00;
+		handlerRTC.RTC_Seconds = 00;
+		RTC_Config(&handlerRTC);
+
 
 }
 void parseCommands(char *ptrBufferReception){

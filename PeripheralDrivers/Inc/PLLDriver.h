@@ -19,10 +19,10 @@
 #define PLL     3
 
 // Definición para prescalers
-#define MCO1PRE_2    4
-#define MCO1PRE_3    5
-#define MCO1PRE_4    6
-#define MCO1PRE_5    7
+#define MCO1PRE_2    2
+#define MCO1PRE_3    3
+#define MCO1PRE_4    4
+#define MCO1PRE_5    5
 
 typedef struct{
 	uint8_t    frecSpeed;
