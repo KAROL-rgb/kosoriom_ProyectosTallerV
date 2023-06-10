@@ -107,8 +107,10 @@ int main(void){
 	}
 }
 void initSystem(void){
+
 		handlerPLL.frecSpeed = FRECUENCY_100MHz;
 		PLL_Config(&handlerPLL);
+
 		//Configurando el pin para el Led Blinky
 		handlerLedOK.pGPIOx                              = GPIOH;
 		handlerLedOK.GPIO_PinConfig.GPIO_PinNumber       = PIN_1;

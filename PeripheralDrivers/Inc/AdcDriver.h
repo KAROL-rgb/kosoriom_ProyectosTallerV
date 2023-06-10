@@ -50,6 +50,21 @@
 // Para utilizar más de un canal
 #define NUMBER_CHANNELS	2
 
+#define TIM1_CC1    1
+#define TIM1_CC2    2
+#define TIM1_CC3    3
+#define TIM2_CC2    4
+#define TIM2_CC3    5
+#define TIM2_CC4    6
+#define TIM2_TRGO   7
+#define TIM3_CC1    8
+#define TIM3_TRGO   9
+#define TIM4_CC4    10
+#define TIM5_CC1    11
+#define TIM5_CC2    12
+#define TIM5_CC3    13
+#define EXTI_LINE   15
+
 typedef struct
 {
 	uint8_t		channel;		    // Canal ADC que será utilizado para la conversión ADC
@@ -58,6 +73,8 @@ typedef struct
 	uint16_t	samplingPeriod[16];	    // Tiempo deseado para hacer la adquisición del dato
 	uint8_t		dataAlignment;	    // Alineación a la izquierda o a la derecha
 	uint16_t	adcData;			//Dato de la conversión
+	uint16_t    adcEvent;
+	uint8_t     typeEvent;
 	uint8_t     multiChannels[16];
 }ADC_Config_t;
 
@@ -71,6 +88,6 @@ void adcExternalEXTIConfig(void);
 void adcTimerEventConfig(void);
 // Función para ADC multicanal
 void ADC_ConfigMultichannel (ADC_Config_t *adcConfig, uint8_t numeroDeCanales);
-
+void adcExternalConfig(ADC_Config_t *adcConfig);
 #endif /* INC_ADCDRIVER_H_ */
 

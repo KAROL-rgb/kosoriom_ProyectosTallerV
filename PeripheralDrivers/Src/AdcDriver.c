@@ -224,7 +224,7 @@ void configAnalogPin(uint8_t adcChannel) {
 		// se necesitan para trabajos posteriores.
 		break;
 	}
-		;
+
 
 	case ADC_CHANNEL_1: {
 		// Buscar y configurar adecuadamente
@@ -477,5 +477,63 @@ void ADC_ConfigMultichannel (ADC_Config_t *adcConfig, uint8_t numeroDeCanales){
 	/* Activamos las interrupciones globales */
 	__enable_irq();
 
-
 }
+
+void adcExternalConfig(ADC_Config_t *adcConfig){
+	ADC1->CR2 &= ~(ADC_CR2_EXTEN);
+	// Se habilita el trigger detection en rising edge
+	ADC1->CR2 |= (0b01 << ADC_CR2_EXTEN_Pos);
+
+	if(adcConfig->typeEvent == ADC_EVENT_ENABLE){
+		ADC1->CR2 &= ~(ADC_CR2_EXTSEL);
+		switch(adcConfig->adcEvent){
+			case 1:{
+				ADC1->CR2 |= (0b000 << ADC_CR2_EXTSEL_Pos);      //Timer 1 CC1 event
+				break;
+			}case 2:{
+				ADC1->CR2 |= (0b001 << ADC_CR2_EXTSEL_Pos);      //Timer 1 CC2 event
+				break;
+			}case 3:{
+				ADC1->CR2 |= (0b010 << ADC_CR2_EXTSEL_Pos);      //Timer 1 CC3 event
+				break;
+			}case 4:{
+				ADC1->CR2 |= (0b011 << ADC_CR2_EXTSEL_Pos);      //Timer 2 CC2 event
+				break;
+			}case 5:{
+				ADC1->CR2 |= (0b100 << ADC_CR2_EXTSEL_Pos);      //Timer 2 CC3 event
+				break;
+			}case 6:{
+				ADC1->CR2 |= (0b101 << ADC_CR2_EXTSEL_Pos);      //Timer 2 CC4 event
+				break;
+			}case 7:{
+				ADC1->CR2 |= (0b110 << ADC_CR2_EXTSEL_Pos);      //Timer 2 TRGO event
+				break;
+			}case 8:{
+				ADC1->CR2 |= (0b111 << ADC_CR2_EXTSEL_Pos);      //Timer 3 CC1 event
+				break;
+			}case 9:{
+				ADC1->CR2 |= (0x8 << ADC_CR2_EXTSEL_Pos);        //Timer 3 TRGO event
+				break;
+			}case 10:{
+				ADC1->CR2 |= (0x9 << ADC_CR2_EXTSEL_Pos);         //Timer 4 CC4 event
+				break;
+			}case 11:{
+				ADC1->CR2 |= (0xA << ADC_CR2_EXTSEL_Pos);         //Timer 5 CC1 event
+				break;
+			}case 12:{
+				ADC1->CR2 |= (0xB << ADC_CR2_EXTSEL_Pos);         //Timer 5 CC2 event
+				break;
+			}case 13:{
+				ADC1->CR2 |= (0xC << ADC_CR2_EXTSEL_Pos);         //Timer 5 CC3 event
+				break;
+			}
+			default:
+			{
+				break;
+			}
+		}
+	}
+}
+
+
+

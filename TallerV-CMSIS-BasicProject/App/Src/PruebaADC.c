@@ -18,6 +18,7 @@
 #include "USARTxDriver.h"
 #include "PLLDriver.h"
 #include "AdcDriver.h"
+#include "PwmDriver.h"
 
 
 /* Defines for the USART and BLINKY pheripheral */
@@ -30,6 +31,7 @@ PLL_Handler_t handlerPLL = {0};
 BasicTimer_Handler_t handlerTimer2 			= {0};	// Timer2
 
 USART_Handler_t handlerCommTerminal		= {0};	// Usart para la terminal en USART 2
+PWM_Handler_t  handlerPWM = {0};
 
 uint8_t 	rxData					= 0;		// Variable donde se guardarán los datos obtenidos por el RX
 
@@ -48,6 +50,9 @@ uint16_t dataADC[NUMBER_CHANNELS] = {0};
 
 int main(void)
 {
+	RCC->CR &= ~RCC_CR_HSITRIM;
+	RCC->CR |= (13 << RCC_CR_HSITRIM_Pos);
+
 	initSystem();
 	writeMsg(&handlerCommTerminal, "\n~Iniciando Sistema~\n");
 
@@ -131,7 +136,7 @@ void initSystem(void){
 	handlerTimer2.ptrTIMx								= TIM2;
 	handlerTimer2.TIMx_Config.TIMx_mode				= BTIMER_MODE_UP;
 	handlerTimer2.TIMx_Config.TIMx_speed				= BTIMER_100MHz_SPEED_100us;
-	handlerTimer2.TIMx_Config.TIMx_period 				= 50;
+	handlerTimer2.TIMx_Config.TIMx_period 				= 2500;
 
 	BasicTimer_Config(&handlerTimer2);
 //	startCounterTimer(&handlerTimer2);
@@ -155,11 +160,28 @@ void initSystem(void){
 	adcConfig.multiChannels[1]   = ADC_CHANNEL_1;
 	adcConfig.dataAlignment 	   = ADC_ALIGNMENT_RIGHT;
 	adcConfig.resolution 		   = ADC_RESOLUTION_12_BIT;
-	adcConfig.samplingPeriod	   = ADC_SAMPLING_PERIOD_84_CYCLES;
+	adcConfig.samplingPeriod[0]	   = ADC_SAMPLING_PERIOD_84_CYCLES;
+	adcConfig.samplingPeriod[1]    = ADC_SAMPLING_PERIOD_84_CYCLES;
+	adcConfig.typeEvent            = ADC_EVENT_ENABLE;
+	adcConfig.adcEvent             = TIM2_CC3;
 
 
 	//Se carga la configuración del ADC
 	ADC_ConfigMultichannel(&adcConfig,2);
+	adcExternalConfig(&adcConfig);
+
+	handlerPWM.ptrTIMx    = TIM2;
+	handlerPWM.config.channel = PWM_CHANNEL_3;
+	handlerPWM.config.duttyCicle = 33;
+	handlerPWM.config.periodo = 60;
+	handlerPWM.config.prescaler = 100;
+
+	pwm_Config(&handlerPWM);
+
+	// Activar señal
+	enableOutput(&handlerPWM);
+	startPwmSignal(&handlerPWM);
+
 
 }
 
@@ -185,3 +207,13 @@ void adcComplete_Callback(void){
 	}
 }
 
+void testingADC(void){
+	if(adcIsComplete == 1){
+		stopPwmSignal(&handlerPWM);
+		for(int i= 0; i < 512; i+=2){
+			sprintf(bufferData, "%u\t%u \n", dataADC[i], dataADC[i-1]);
+			writeMsg(&handlerCommTerminal, bufferData);
+		}
+		adcIsComplete = 0;
+	}
+}
