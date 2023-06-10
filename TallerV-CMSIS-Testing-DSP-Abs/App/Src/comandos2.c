@@ -1,11 +1,10 @@
 /*
- * comandos.c
+ * comandos2.c
  *
- *  Created on: 3/06/2023
+ *  Created on: 10/06/2023
  *      Author: karol
  */
-
-/* Defines for the USART and BLINKY pheripheral */
+#include <stdlib.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdbool.h>
@@ -21,7 +20,7 @@
 #include "AdcDriver.h"
 #include "PLLDriver.h"
 #include "RTCDriver.h"
-
+#include "arm_math.h"
 BasicTimer_Handler_t handlerTimer2 	= {0};	// Timer2
 USART_Handler_t handlerCommTerminal		= {0};	// Usart para la terminal en USART 2
 uint8_t 	rxData					= 0;				// Variable donde se guardarán los datos obtenidos por el RX
@@ -165,12 +164,12 @@ void initSystem(void){
 		handlerCommTerminal.USART_Config.USART_enableIntTX            = DISABLE;
 		USART_Config(&handlerCommTerminal);
 
-//		handlerTimer2.ptrTIMx								= TIM2;
-//		handlerTimer2.TIMx_Config.TIMx_mode				    = BTIMER_MODE_UP;
-//		handlerTimer2.TIMx_Config.TIMx_speed				= BTIMER_100MHz_SPEED_100us;
-//		handlerTimer2.TIMx_Config.TIMx_period 				= 2500;
-//
-//		BasicTimer_Config(&handlerTimer2);
+		handlerTimer2.ptrTIMx								= TIM2;
+		handlerTimer2.TIMx_Config.TIMx_mode				    = BTIMER_MODE_UP;
+		handlerTimer2.TIMx_Config.TIMx_speed				= BTIMER_100MHz_SPEED_100us;
+		handlerTimer2.TIMx_Config.TIMx_period 				= 2500;
+
+		BasicTimer_Config(&handlerTimer2);
 
 		/****Configuración para probar el MCO1 en el analizador de señales****/
 		handlerPinMCO1.pGPIOx                                = GPIOA;
@@ -188,8 +187,6 @@ void initSystem(void){
 		adcConfig.dataAlignment 	   = ADC_ALIGNMENT_RIGHT;
 		adcConfig.resolution 		   = ADC_RESOLUTION_12_BIT;
 		adcConfig.samplingPeriod	   = ADC_SAMPLING_PERIOD_84_CYCLES;
-		adcConfig.adcEvent = 5;
-		adcConfig.typeEvent = 1;
 		//Se carga la configuración del ADC
 		ADC_ConfigMultichannel(&adcConfig,2);
 		adcExternalConfig(&adcConfig);
@@ -396,7 +393,7 @@ void testingADC(void){
 			sprintf(bufferData, "%u\t%u \n", dataADC[i], dataADC[i-1]);
 			writeMsg(&handlerCommTerminal, bufferData);
 		}
-		startPwmSignal(&handlerPWM);
 		adcIsComplete = 0;
 	}
 }
+

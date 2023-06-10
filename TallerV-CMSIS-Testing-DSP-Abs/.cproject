@@ -84,7 +84,7 @@
 						</toolChain>
 					</folderInfo>
 					<sourceEntries>
-						<entry excluding="Src/BasicProjectMain.c|Src/PLL_Main.c|Src/PruebaPLL.c|Src/BasicPLLMain.c|Src/SysTick_Main.c|Src/TestPWM_Main.c|Src/TestingFpu_Main.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="App"/>
+						<entry excluding="Src/Testing-DSP.c|Src/BasicProjectMain.c|Src/PLL_Main.c|Src/PruebaPLL.c|Src/BasicPLLMain.c|Src/SysTick_Main.c|Src/TestPWM_Main.c|Src/TestingFpu_Main.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="App"/>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Core"/>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="DSP"/>
 					</sourceEntries>

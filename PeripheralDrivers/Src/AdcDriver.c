@@ -426,10 +426,10 @@ void ADC_ConfigMultichannel (ADC_Config_t *adcConfig, uint8_t numeroDeCanales){
 
 		if(adcConfig->multiChannels[k] <= ADC_CHANNEL_9){
 
-			ADC1->SMPR2 |= (adcConfig->samplingPeriod[k]) << (0x3*adcConfig->multiChannels[k]);
+			ADC1->SMPR2 |= (adcConfig->samplingPeriod) << (0x3*adcConfig->multiChannels[k]);
 		}
 		else{
-			ADC1->SMPR1 |= (adcConfig->samplingPeriod[k]) << (0x3*adcConfig->multiChannels[k] - 10);
+			ADC1->SMPR1 |= (adcConfig->samplingPeriod) << (0x3*adcConfig->multiChannels[k] - 10);
 		}
 	}
 	/* Seleccionamos la secuencia y los elementos que hay en ella */

@@ -32,6 +32,7 @@ BasicTimer_Handler_t handlerTimer2 			= {0};	// Timer2
 
 USART_Handler_t handlerCommTerminal		= {0};	// Usart para la terminal en USART 2
 PWM_Handler_t  handlerPWM = {0};
+GPIO_Handler_t hnadlerPinPWM = {0};
 
 uint8_t 	rxData					= 0;		// Variable donde se guardarán los datos obtenidos por el RX
 
@@ -45,8 +46,15 @@ char bufferData[128] = {0};
 
 #define NUMBER_CHANNELS	2
 uint8_t adcIsComplete		= 0;
-uint8_t adcCounter			= 0;
-uint16_t dataADC[NUMBER_CHANNELS] = {0};
+uint16_t adcCounter			= 0;
+uint16_t dataADC[512] = {0};
+uint8_t flagADC = {0};
+uint16_t data1ADC[256];
+uint16_t data2ADC[256];
+uint16_t dataCounter = 0;
+uint16_t counterData = 0;
+
+void testingADC(void);
 
 int main(void)
 {
@@ -58,26 +66,28 @@ int main(void)
 
     while(1){
 
-    	if(rxData != '\0'){
+    	testingADC();
 
-			if(rxData == 'a'){
-				// Iniciamos una conversión ADC
-				startSingleADC();
-
-				}
-
-			// Limpiamos el dato de RX
-			rxData = '\0';
-
-    	}
-
-		if(adcIsComplete == 1){
-			// Enviamos los datos por consola
-			sprintf(bufferData,"%u\t%u\n",dataADC[0],dataADC[1]);
-			writeMsg(&handlerCommTerminal, bufferData);
-			// Bajamos la bandera del ADC
-			adcIsComplete = 0;
-		}
+//    	if(rxData != '\0'){
+//
+//			if(rxData == 'a'){
+//				// Iniciamos una conversión ADC
+//				startSingleADC();
+//
+//				}
+//
+//			// Limpiamos el dato de RX
+//			rxData = '\0';
+//
+//    	}
+//
+//		if(adcIsComplete == 1){
+//			// Enviamos los datos por consola
+//			sprintf(bufferData,"%u\t%u\n",dataADC[0],dataADC[1]);
+//			writeMsg(&handlerCommTerminal, bufferData);
+//			// Bajamos la bandera del ADC
+//			adcIsComplete = 0;
+//		}
     }
     return 0;
 }
@@ -160,15 +170,26 @@ void initSystem(void){
 	adcConfig.multiChannels[1]   = ADC_CHANNEL_1;
 	adcConfig.dataAlignment 	   = ADC_ALIGNMENT_RIGHT;
 	adcConfig.resolution 		   = ADC_RESOLUTION_12_BIT;
-	adcConfig.samplingPeriod[0]	   = ADC_SAMPLING_PERIOD_84_CYCLES;
-	adcConfig.samplingPeriod[1]    = ADC_SAMPLING_PERIOD_84_CYCLES;
+	adcConfig.samplingPeriod	   = ADC_SAMPLING_PERIOD_112_CYCLES;
 	adcConfig.typeEvent            = ADC_EVENT_ENABLE;
 	adcConfig.adcEvent             = TIM2_CC3;
-
 
 	//Se carga la configuración del ADC
 	ADC_ConfigMultichannel(&adcConfig,2);
 	adcExternalConfig(&adcConfig);
+
+	hnadlerPinPWM.pGPIOx                           = GPIOB;
+	hnadlerPinPWM.GPIO_PinConfig.GPIO_PinNumber    = PIN_10;
+	hnadlerPinPWM.GPIO_PinConfig.GPIO_PinMode      = GPIO_MODE_ALTFN;
+	hnadlerPinPWM.GPIO_PinConfig.GPIO_PinOPType    = GPIO_OTYPE_PUSHPULL;
+	hnadlerPinPWM.GPIO_PinConfig.GPIO_PinPuPdControl = GPIO_PUPDR_NOTHING;
+	hnadlerPinPWM.GPIO_PinConfig.GPIO_PinSpeed     = GPIO_OSPEED_FAST;
+	hnadlerPinPWM.GPIO_PinConfig.GPIO_PinAltFunMode  = AF1;
+
+	/*Cargamos la configuración de los registros del MCU*/
+	GPIO_Config(&hnadlerPinPWM);
+
+
 
 	handlerPWM.ptrTIMx    = TIM2;
 	handlerPWM.config.channel = PWM_CHANNEL_3;
@@ -176,11 +197,13 @@ void initSystem(void){
 	handlerPWM.config.periodo = 60;
 	handlerPWM.config.prescaler = 100;
 
-	pwm_Config(&handlerPWM);
+
 
 	// Activar señal
+	pwm_Config(&handlerPWM);
 	enableOutput(&handlerPWM);
 	startPwmSignal(&handlerPWM);
+
 
 
 }
@@ -198,7 +221,7 @@ void usart1Rx_Callback(void){
 
 void adcComplete_Callback(void){
 	dataADC[adcCounter] = getADC();
-	if(adcCounter < (NUMBER_CHANNELS-1)){
+	if(adcCounter < (512 - 1)){
 		adcCounter++;
 	}
 	else{
