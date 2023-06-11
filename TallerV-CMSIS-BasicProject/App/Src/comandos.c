@@ -264,8 +264,10 @@ void parseCommands(char *ptrBufferReception){
 			configMCO1(&handlerMCO1);
 			sprintf(bufferData, "MCO1 configura el PLL \n");
 			writeMsg(&handlerCommTerminal, bufferData);
+
 		}
 	}
+
 	/* Comandos para seleccionar el prescaler de la señal en el MCO1 */
 	else if(strcmp(cmd, "selectPrescaler") == 0)
 	{
@@ -280,6 +282,7 @@ void parseCommands(char *ptrBufferReception){
 		}
 	}
 
+
 	/* Comandos para el RTC */
 	// Configuración de la hora inicial
 	else if(strcmp(cmd, "initialHours") == 0)
@@ -292,7 +295,7 @@ void parseCommands(char *ptrBufferReception){
 
 	}
 	/* Configuración fecha inicial */
-	else if(strcmp(cmd, "initalMounths") == 0){
+	else if(strcmp(cmd, "initalMonths") == 0){
 		writeMsg(&handlerCommTerminal, " Inicializacion date \n");
 		handlerRTC.RTC_Day = firstParameter;
 		handlerRTC.RTC_Mounth = secondParameter;
@@ -316,7 +319,8 @@ void parseCommands(char *ptrBufferReception){
 		sprintf(bufferData, "La fecha es: %u / %u / 2023 \n", days, mounths);
 		writeMsg(&handlerCommTerminal, bufferData);
 
-	}// Comandos para ADC
+	}
+	// Comandos para ADC
 	else if(strcmp(cmd, "PwmConfig") == 0){
 		writeMsg(&handlerCommTerminal, "CMD: Ingrese la frecuencia\n");
 

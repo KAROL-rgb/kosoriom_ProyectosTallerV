@@ -73,8 +73,8 @@ void PLL_Config(PLL_Handler_t *ptrPLL_Handler){
 		/*** Lo siguiente es para probar con el osciloscopio u analizador de señales, para eso se debe activar un prescaler  ***/
 		// Se utiliza el registro MCO1: Microncontroller clock output 1
 
-		RCC->CFGR &= ~RCC_CFGR_MCO1_0;
-		RCC->CFGR &= ~RCC_CFGR_MCO1_1;
+		RCC->CFGR |= RCC_CFGR_MCO1_0;
+		RCC->CFGR |= RCC_CFGR_MCO1_1;
 
 		RCC->CFGR |= RCC_CFGR_MCO1PRE_0;
 		RCC->CFGR |= RCC_CFGR_MCO1PRE_1;
