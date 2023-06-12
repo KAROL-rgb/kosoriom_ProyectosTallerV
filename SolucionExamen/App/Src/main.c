@@ -19,7 +19,7 @@
 #include <math.h>
 #include <string.h>
 #include "stm32f4xx.h"
-
+#include "I2CDriver.h"
 #include "GPIOxDriver.h"
 #include "BasicTimer.h"
 #include "ExtiDriver.h"
@@ -30,6 +30,7 @@
 #include "RTCDriver.h"
 
 BasicTimer_Handler_t handlerTimer2 	= {0};	// Timer2
+BasicTimer_Handler_t handlerTimer5 = {0};   // Timer5
 USART_Handler_t handlerCommTerminal		= {0};	// Usart para la terminal en USART 2
 uint8_t 	rxData					= 0;				// Variable donde se guardarán los datos obtenidos por el RX
 
@@ -43,7 +44,7 @@ PWM_Handler_t  handlerPWM = {0};
 GPIO_Handler_t hnadlerPinPWM = {0};
 ADC_Config_t adcConfig = {0};
 
-char bufferData[128] = {0};
+char bufferMsg[128] = {0};
 
 #define NUMBER_CHANNELS	2
 uint8_t adcIsComplete		= 0;
@@ -57,9 +58,19 @@ uint16_t counterData = 0;
 uint16_t freqInput = 0;
 uint16_t time = 66;
 uint16_t dutty = 33;
-
-//ADC_Config_t channel_1				= {0};
-//ADC_Config_t channel_2				= {0};
+// Acelerometro
+BasicTimer_Handler_t handlerTimerMuestreo   = {0};
+GPIO_Handler_t handlerPC9 = {0}; // Pin
+char bufferData[64] = "Accel MPU-6050 testing...";
+/*Configuración para el I2C*/
+GPIO_Handler_t handlerI2cSDA = {0};
+GPIO_Handler_t handlerI2cSCL = {0};
+I2C_Handler_t handlerAccelerometer = {0};
+uint8_t i2cBuffer = 0;
+// Para el muestreo
+uint16_t contador = {0};
+uint8_t flag = 0;
+uint8_t counter = 0;
 GPIO_Handler_t handlerPinMCO1               = {0};
 MCO1_Handler_t handlerMCO1 = {0};
 
@@ -73,10 +84,27 @@ uint8_t autoUpdateLCD = 0;
 
 unsigned int firstParameter;
 unsigned int secondParameter;
+// Acelerometro
+float arrayX[2000]={0};
+float arrayY[2000]={0};
+float arrayZ[2000]={0};
+
+#define ACCEL_ADDRESS     0x1D // 0xD2 -> Dirección del Accel con Logic_1
+#define ACCEL_XOUT_L      50      // 0x3B
+#define ACCEL_XOUT_H      51      // 0x3C
+#define ACCEL_YOUT_L      52      // 0x3D
+#define ACCEL_YOUT_H      53      // 0x3E
+#define ACCEL_ZOUT_L      54      // 0x3F
+#define ACCEL_ZOUT_H      55      // 0x40
+
+#define BW_RATE          44
+#define POWER_CTL        45
+#define WHO_AM_I          0
 
 void initSystem(void);
 void parseCommands(char *ptrBufferReception);
 void testingADC(void);
+void acelerometro(void);
 int main(void){
 
 	RCC->CR &= ~RCC_CR_HSITRIM;
@@ -101,8 +129,6 @@ int main(void){
 				bufferReception[counterReception] = '\0';
 
 				counterReception = 0;
-
-
 			}
 
 			// Para que no vuelva a entrar. Solo cambia debido a la interrupción
@@ -114,13 +140,6 @@ int main(void){
 			parseCommands(bufferReception);
 			stringComplete = false;
 		}
-//		if(adcIsComplete == 1){
-//		// Enviamos los datos por consola
-//		sprintf(bufferData,"%u\t%u\n",dataADC[0],dataADC[1]);
-//		writeMsg(&handlerCommTerminal, bufferData);
-//		// Bajamos la bandera del ADC
-//		adcIsComplete = 0;
-//	}
 
 	}
 	return 0;
@@ -129,6 +148,8 @@ void initSystem(void){
 
 		handlerPLL.frecSpeed = FRECUENCY_100MHz;
 		PLL_Config(&handlerPLL);
+		/* Activación punto flotante */
+		SCB->CPACR |= (0xF << 20);
 
 		//Configurando el pin para el Led Blinky
 		handlerLedOK.pGPIOx                              = GPIOH;
@@ -172,12 +193,12 @@ void initSystem(void){
 		handlerCommTerminal.USART_Config.USART_enableIntTX            = DISABLE;
 		USART_Config(&handlerCommTerminal);
 
-//		handlerTimer2.ptrTIMx								= TIM2;
-//		handlerTimer2.TIMx_Config.TIMx_mode				    = BTIMER_MODE_UP;
-//		handlerTimer2.TIMx_Config.TIMx_speed				= BTIMER_100MHz_SPEED_100us;
-//		handlerTimer2.TIMx_Config.TIMx_period 				= 2500;
-//
-//		BasicTimer_Config(&handlerTimer2);
+		handlerTimer2.ptrTIMx								= TIM5;
+		handlerTimer2.TIMx_Config.TIMx_mode				    = BTIMER_MODE_UP;
+		handlerTimer2.TIMx_Config.TIMx_speed				= BTIMER_100MHz_SPEED_100us;
+		handlerTimer2.TIMx_Config.TIMx_period 				= 2500;
+
+		BasicTimer_Config(&handlerTimer2);
 
 		/****Configuración para probar el MCO1 en el analizador de señales****/
 		handlerPinMCO1.pGPIOx                                = GPIOA;
@@ -218,8 +239,6 @@ void initSystem(void){
 		handlerPWM.config.periodo = 60;
 		handlerPWM.config.prescaler = 100;
 
-
-
 		// Activar señal
 		pwm_Config(&handlerPWM);
 		enableOutput(&handlerPWM);
@@ -232,6 +251,53 @@ void initSystem(void){
 		handlerRTC.RTC_Minutes = 00;
 		handlerRTC.RTC_Seconds = 00;
 		RTC_Config(&handlerRTC);
+
+		/*Configurando los pines sobre los que funciona el I2C1*/
+		handlerI2cSCL.pGPIOx                                 = GPIOB;
+		handlerI2cSCL.GPIO_PinConfig.GPIO_PinNumber          = PIN_8;
+		handlerI2cSCL.GPIO_PinConfig.GPIO_PinMode            = GPIO_MODE_ALTFN;
+		handlerI2cSCL.GPIO_PinConfig.GPIO_PinOPType          = GPIO_OTYPE_OPENDRAIN;
+		handlerI2cSCL.GPIO_PinConfig.GPIO_PinPuPdControl     = GPIO_PUPDR_NOTHING;
+		handlerI2cSCL.GPIO_PinConfig.GPIO_PinSpeed           = GPIO_OSPEED_FAST;
+		handlerI2cSCL.GPIO_PinConfig.GPIO_PinAltFunMode      = AF4;
+		GPIO_Config(&handlerI2cSCL);
+
+		/*Configurando los pines sobre los que funciona el I2C1*/
+		handlerI2cSDA.pGPIOx                                 = GPIOB;
+		handlerI2cSDA.GPIO_PinConfig.GPIO_PinNumber          = PIN_9;
+		handlerI2cSDA.GPIO_PinConfig.GPIO_PinMode            = GPIO_MODE_ALTFN;
+		handlerI2cSDA.GPIO_PinConfig.GPIO_PinOPType          = GPIO_OTYPE_OPENDRAIN;
+		handlerI2cSDA.GPIO_PinConfig.GPIO_PinPuPdControl     = GPIO_PUPDR_NOTHING;
+		handlerI2cSDA.GPIO_PinConfig.GPIO_PinSpeed           = GPIO_OSPEED_FAST;
+		handlerI2cSDA.GPIO_PinConfig.GPIO_PinAltFunMode      = AF4;
+		GPIO_Config(&handlerI2cSDA);
+
+		//Configuración Timer para 200Hz
+		handlerTimerMuestreo.ptrTIMx                           = TIM4;
+		handlerTimerMuestreo.TIMx_Config.TIMx_mode		       = BTIMER_MODE_UP;
+		handlerTimerMuestreo.TIMx_Config.TIMx_speed		       = BTIMER_100MHz_SPEED_1ms;
+		handlerTimerMuestreo.TIMx_Config.TIMx_period		   = 14;                // Interrupcion cada 5 ms
+		handlerTimerMuestreo.TIMx_Config.TIMx_interruptEnable  = ENABLE;
+		BasicTimer_Config(&handlerTimerMuestreo);
+
+		/*Configurando el acelerómetro*/
+
+		handlerAccelerometer.ptrI2Cx                         = I2C1;
+		handlerAccelerometer.modeI2C                         = I2C_MODE_FM;
+		handlerAccelerometer.slaveAddress                    = ACCEL_ADDRESS;
+		handlerAccelerometer.mainClock                       = MAIN_CLOCK_100_MHz_FOR_I2C;
+		handlerAccelerometer.maxI2C_FM                       = I2C_MAX_RISE_TIME_FM_100MHz;
+		handlerAccelerometer.modeI2C_FM                      = I2C_MODE_FM_SPEED_400KHz_100MHz;
+		i2c_config(&handlerAccelerometer);
+
+		handlerPC9.pGPIOx = GPIOC;
+		handlerPC9.GPIO_PinConfig.GPIO_PinNumber       = PIN_9;
+		handlerPC9.GPIO_PinConfig.GPIO_PinMode         = GPIO_MODE_OUT;
+		handlerPC9.GPIO_PinConfig.GPIO_PinOPType       = GPIO_OTYPE_PUSHPULL;
+		handlerPC9.GPIO_PinConfig.GPIO_PinPuPdControl  = GPIO_PUPDR_NOTHING;
+		handlerPC9.GPIO_PinConfig.GPIO_PinSpeed        = GPIO_OSPEED_MEDIUM;
+		handlerPC9.GPIO_PinConfig.GPIO_PinAltFunMode   = AF0;
+		GPIO_Config(&handlerPC9);
 
 
 }
@@ -347,45 +413,77 @@ void parseCommands(char *ptrBufferReception){
 		testingADC();
 	}
 
-	// El comando dummy sirve para entender como funciona la recepción de números enviados
-	// desde la consola
-	else if (strcmp(cmd, "dummy")== 0){
-		writeMsg(&handlerCommTerminal, "CMD: dummy\n");
-		// Cambiando el formato para presenta el número por el puerto serial
-		sprintf(bufferData, "number A = %u\n", firstParameter);
-		writeMsg(&handlerCommTerminal, bufferData);
-
-		// Cambiando el formato para presentar el número por el puerto serial
-		sprintf(bufferData, "number B = %u \n", secondParameter);
-		writeMsg(&handlerCommTerminal, bufferData);
+	/* Comandos acelerómetro */
+	else if (strcmp(cmd, "ValoresAcelerometro") == 0) {
+		acelerometro();
+		writeMsg(&handlerCommTerminal, "Mostrar los datos del acelerómetro \n");
+		for (int i = 0; i < 2000; i++) {
+			sprintf(bufferMsg,"%u arrayX = %.2f m/s2 ; arrayY = %.2f m/s2; arrayZ = %.2f m/s2 \n",i, arrayX[i], arrayY[i], arrayZ[i]);
+			writeMsg(&handlerCommTerminal, bufferMsg);
+		}
 	}
 	else{
 		// Se imprime el mensaje "wrong CMD" si la escritura no corresponde a los CMD implementados
 		writeMsg(&handlerCommTerminal, "Wrong CMD");
 	}
 }
+void acelerometro(void) {
+
+	flag = 1;
+	while (flag == 1) {
+
+//		i2c_writeSingleRegister(&handlerAccelerometer, POWER_CTL, 0x2D);
+
+		GPIO_WritePin(&handlerPC9, SET);
+
+		i2c_writeSingleRegister(&handlerAccelerometer, BW_RATE, 0xF);
+		i2c_writeSingleRegister(&handlerAccelerometer, POWER_CTL, 0x08);
+
+		if (contador < 2000) {
+			uint8_t AccelX_low = i2c_readSingleRegister(&handlerAccelerometer, ACCEL_XOUT_L);
+			uint8_t AccelX_high = i2c_readSingleRegister(&handlerAccelerometer, ACCEL_XOUT_H);
+			int16_t AccelX = AccelX_high << 8 | AccelX_low;
+
+			uint8_t AccelY_low = i2c_readSingleRegister(&handlerAccelerometer, ACCEL_YOUT_L);
+			uint8_t AccelY_high = i2c_readSingleRegister(&handlerAccelerometer, ACCEL_YOUT_H);
+			int16_t AccelY = AccelY_high << 8 | AccelY_low;
+
+			uint8_t AccelZ_low = i2c_readSingleRegister(&handlerAccelerometer, ACCEL_ZOUT_L);
+			uint8_t AccelZ_high = i2c_readSingleRegister(&handlerAccelerometer, ACCEL_ZOUT_H);
+			int16_t AccelZ = AccelZ_high << 8 | AccelZ_low;
+
+			arrayX[contador] = (AccelX / 256.f * 9.8);
+			arrayY[contador] = (AccelY / 256.f * 9.8);
+			arrayZ[contador] = (AccelZ / 256.f * 9.8);
+		}
+		GPIO_WritePin(&handlerPC9, RESET);
+		while (counter) {
+			__NOP();
+		}
+		counter = 1;
+	}
 
 
-//void updateLCD(void){
-//	if(updateValues){
-//		lcd_moveCursor(1, 2);
-//		lcd_write_msg("Testing LCD");
-//		lcd_moveCursor(2, 0);
-//		lcd_write_msg("ADC ch10 = ");
-//
-//		lcd_moveCUrsor(3, 0);
-//		lcd_write_msg("ADC ch11 = ");
-//
-//		lcd_moveCursor(4, 0);
-//		lcd_write_msg("ADC ch12 = ");
-//	}
-//}
+}
+void BasicTimer4_Callback(void){
+	GPIOxTooglePin(&handlerPC9);
+	if(flag == 1){
+		contador ++;
+		counter = 0;
+	}
+	if(contador == 2000){
+		rxData = '\0';
+		contador = 0;
+		flag = 0;
+
+	}
+}
 void usart1Rx_Callback(void){
 	// Leemos el valor del registro DR, donde se almacena el dato que llega.
 	// Esro adempas debe bajar la bandera de la interrupción
 	rxData = getRXData();
 }
-void BasicTimer2_Callback(void){
+void BasicTimer5_Callback(void){
 	// Hacemos un blinky, para indicar que el equipo está funcionando correctamente
 	GPIOxTooglePin(&handlerLedOK);
 }

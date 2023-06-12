@@ -494,18 +494,21 @@ void acelerometro(void) {
 			uint8_t AccelX_low = i2c_readSingleRegister(&handlerAccelerometer, ACCEL_XOUT_L);
 			uint8_t AccelX_high = i2c_readSingleRegister(&handlerAccelerometer, ACCEL_XOUT_H);
 			int16_t AccelX = AccelX_high << 8 | AccelX_low;
+			float valorX = (AccelX/256.f*9.8);
 
 			uint8_t AccelY_low = i2c_readSingleRegister(&handlerAccelerometer, ACCEL_YOUT_L);
 			uint8_t AccelY_high = i2c_readSingleRegister(&handlerAccelerometer, ACCEL_YOUT_H);
 			int16_t AccelY = AccelY_high << 8 | AccelY_low;
+			float valorY = (AccelY/256.f*9.8);
 
 			uint8_t AccelZ_low = i2c_readSingleRegister(&handlerAccelerometer, ACCEL_ZOUT_L);
 			uint8_t AccelZ_high = i2c_readSingleRegister(&handlerAccelerometer, ACCEL_ZOUT_H);
 			int16_t AccelZ = AccelZ_high << 8 | AccelZ_low;
+			float valorZ = (AccelZ/256.f*9.8);
 
-			arrayX[contador] = (AccelX / 256.f * 9.8);
-			arrayY[contador] = (AccelY / 256.f * 9.8);
-			arrayZ[contador] = (AccelZ / 256.f * 9.8);
+			arrayX[contador] = (valorX);
+			arrayY[contador] = (valorY);
+			arrayZ[contador] = (valorZ);
 		}
 		GPIO_WritePin(&handlerPC9, RESET);
 		while (counter) {
