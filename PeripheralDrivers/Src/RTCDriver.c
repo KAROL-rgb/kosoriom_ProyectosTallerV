@@ -45,18 +45,18 @@ void RTC_Config(RTC_Handler_t *ptrHandlerRTC){
 	RTC->TR = 0;      // Calendar time shadow register.
 
 	/* Configuración para la hora */
-	if(ptrHandlerRTC->RTC_Hours <= 24){
+	if(ptrHandlerRTC->RTC_Hours <= 23){
 		RTC -> TR |= (((ptrHandlerRTC->RTC_Hours)/10) << RTC_TR_HT_Pos);
 		RTC -> TR |= (((ptrHandlerRTC->RTC_Hours)%10) << RTC_TR_HU_Pos);
 	}
 
-	if(ptrHandlerRTC->RTC_Minutes <= 60){
+	if(ptrHandlerRTC->RTC_Minutes <= 59){
 		RTC -> TR |= (((ptrHandlerRTC->RTC_Minutes)/10) << RTC_TR_MNT_Pos);
 		RTC -> TR |= (((ptrHandlerRTC->RTC_Minutes)%10) << RTC_TR_MNU_Pos);
 
 	}
 
-	if(ptrHandlerRTC->RTC_Seconds <= 60){
+	if(ptrHandlerRTC->RTC_Seconds <= 59){
 		RTC -> TR |= (((ptrHandlerRTC->RTC_Seconds)/10) << RTC_TR_ST_Pos);
 		RTC -> TR |= (((ptrHandlerRTC->RTC_Seconds)%10) << RTC_TR_SU_Pos);
 	}
@@ -65,12 +65,12 @@ void RTC_Config(RTC_Handler_t *ptrHandlerRTC){
 	RTC-> DR |= (((ptrHandlerRTC->RTC_Years)/10) << RTC_DR_YT_Pos);
 	RTC-> DR |= (((ptrHandlerRTC->RTC_Years)%10) << RTC_DR_YU_Pos);
 
-	if(ptrHandlerRTC->RTC_Mounth <= 12 && ptrHandlerRTC->RTC_Mounth >= 1){
-		RTC->DR |= (((ptrHandlerRTC->RTC_Mounth)/10) << RTC_DR_MT_Pos);
-		RTC->DR |= (((ptrHandlerRTC->RTC_Mounth)%10) << RTC_DR_MU_Pos);
+	if(ptrHandlerRTC->RTC_Month <= 12){
+		RTC->DR |= (((ptrHandlerRTC->RTC_Month)/10) << RTC_DR_MT_Pos);
+		RTC->DR |= (((ptrHandlerRTC->RTC_Month)%10) << RTC_DR_MU_Pos);
 	}
 
-	if(ptrHandlerRTC->RTC_Day <= 31 && ptrHandlerRTC->RTC_Day >=1){
+	if(ptrHandlerRTC->RTC_Day <= 31){
 		RTC->DR |= (((ptrHandlerRTC->RTC_Day)/10) << RTC_DR_DT_Pos);
 		RTC->DR |= (((ptrHandlerRTC->RTC_Day)%10) << RTC_DR_DU_Pos);
 	}
@@ -79,16 +79,19 @@ void RTC_Config(RTC_Handler_t *ptrHandlerRTC){
 	RCC->BDCR |= RCC_BDCR_RTCEN;
 	RTC->ISR &= ~RTC_ISR_INIT;
 	PWR->CR &= ~PWR_CR_DBP;
+
+	RTC->CR &= ~RTC_CR_BYPSHAD;
+	RTC->WPR = (0xFF);
 }
 uint8_t getDays(RTC_Handler_t ptrHandlerRTC){
 	uint8_t data = 0;
 	uint32_t dataTens = 0;
 	uint32_t dataUnits = 0;
 
-	dataTens = RTC->DR & RTC_DR_DT;
+	dataTens = RTC->DR & RTC_DR_DT_Msk;
 	dataTens >>= RTC_DR_DT_Pos;
 
-	dataUnits = RTC->DR & RTC_DR_DU;
+	dataUnits = RTC->DR & RTC_DR_DU_Msk;
 	dataUnits >>= RTC_DR_DU_Pos;
 
 	data = (dataTens*10) + dataUnits;
@@ -101,25 +104,25 @@ uint8_t getHours(RTC_Handler_t ptrHandlerRTC){
 	uint32_t dataTens = 0;
 	uint32_t dataUnits = 0;
 
-	dataTens = RTC->TR & RTC_TR_HT;
+	dataTens = RTC->TR & RTC_TR_HT_Msk;
 	dataTens >>= RTC_TR_HT_Pos;
 
-	dataUnits = RTC->TR & RTC_TR_HU;
+	dataUnits = RTC->TR & RTC_TR_HU_Msk;
 	dataUnits >>= RTC_TR_HU_Pos;
 
 	data = (dataTens*10) + dataUnits;
 
 	return data;
 }
-uint8_t getMounths(RTC_Handler_t ptrHandlerRTC){
+uint8_t getDate(RTC_Handler_t ptrHandlerRTC){
 	uint8_t data = 0;
 	uint32_t dataTens = 0;
 	uint32_t dataUnits = 0;
 
-	dataTens = RTC->DR & RTC_DR_MT;
+	dataTens = RTC->DR & RTC_DR_MT_Msk;
 	dataTens >>= RTC_DR_MT_Pos;
 
-	dataUnits = RTC->DR & RTC_DR_MU;
+	dataUnits = RTC->DR & RTC_DR_MU_Msk;
 	dataUnits >>= RTC_DR_MU_Pos;
 
 	data = (dataTens*10) + dataUnits;
@@ -131,10 +134,10 @@ uint8_t getSeconds(RTC_Handler_t ptrHandlerRTC){
 	uint8_t dataTens = 0;
 	uint8_t dataUnits = 0;
 
-	dataTens = RTC->TR & RTC_TR_ST;
+	dataTens = RTC->TR & RTC_TR_ST_Msk;
 	dataTens >>= RTC_TR_ST_Pos;
 
-	dataUnits = RTC->TR & RTC_TR_SU;
+	dataUnits = RTC->TR & RTC_TR_SU_Msk;
 	dataUnits >>= RTC_TR_SU_Pos;
 
 	data = (dataTens*10) + dataUnits;
@@ -146,10 +149,10 @@ uint8_t getMinutes(RTC_Handler_t ptrHandlerRTC){
 	uint32_t dataTens = 0;
 	uint32_t dataUnits = 0;
 
-	dataTens = RTC->TR & RTC_TR_MNT;
+	dataTens = RTC->TR & RTC_TR_MNT_Msk;
 	dataTens >>= RTC_TR_MNT_Pos;
 
-	dataUnits = RTC->TR & RTC_TR_MNU;
+	dataUnits = RTC->TR & RTC_TR_MNU_Msk;
 	dataUnits >>= RTC_TR_MNU_Pos;
 
 	data = (dataTens*10) + dataUnits;

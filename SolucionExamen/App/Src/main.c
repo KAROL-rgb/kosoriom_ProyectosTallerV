@@ -5,12 +5,7 @@
  *      Author: karol
  */
 
-/*
- * comandos.c
- *
- *  Created on: 3/06/2023
- *      Author: karol
- */
+
 
 /******************************************** Inclusión de librerías a utilizar **************************************/
 #include <stdint.h>
@@ -59,10 +54,10 @@ uint8_t rxData					= 0;				// Variable donde se guardarán los datos obtenidos p
 uint8_t i2cBuffer               = 0;
 /********************************** ADC ***************/
 #define NUMBER_CHANNELS	2
-uint8_t adcIsComplete		= 0;
+uint8_t  adcIsComplete		= 0;
 uint16_t adcCounter			= 0;
 uint16_t dataADC[512]       = {0};
-uint8_t flagADC             = {0};
+uint8_t  flagADC            = {0};
 uint16_t data1ADC[256];
 uint16_t data2ADC[256];
 uint16_t dataCounter        = 0;
@@ -75,6 +70,14 @@ uint16_t dutty              = 33;
 uint16_t contador = {0};
 uint8_t flag      = 0;
 uint8_t counter   = 0;
+
+/**** Variables para el RTC *****/
+uint8_t seconds  	= 0;
+uint8_t minutes		= 0;
+uint8_t hours		= 0;
+uint8_t days		= 0;
+uint8_t months		= 0;
+uint8_t years		= 0;
 
 /******************************* Variables comandos *******************/
 uint8_t counterReception = 0;
@@ -100,6 +103,7 @@ uint16_t fftSize = 128;
 
 unsigned int firstParameter;
 unsigned int secondParameter;
+unsigned int thirdParameter;
 
 /***************************** Arreglo valores ejes del acelerometr **************/
 float arrayX[256]={0};
@@ -277,13 +281,6 @@ void initSystem(void){
 		enableOutput(&handlerPWM);
 		startPwmSignal(&handlerPWM);
 
-		handlerRTC.RTC_Day = 9;
-		handlerRTC.RTC_Mounth = 11;
-		handlerRTC.RTC_Years  = 22;
-		handlerRTC.RTC_Hours = 8;
-		handlerRTC.RTC_Minutes = 00;
-		handlerRTC.RTC_Seconds = 00;
-		RTC_Config(&handlerRTC);
 
 		/*********************** Configurando los pines sobre los que funciona el I2C1 ***************************************/
 		handlerI2cSCL.pGPIOx                                 = GPIOB;
@@ -338,7 +335,7 @@ void parseCommands(char *ptrBufferReception){
 	// y almacena en tres elementos diferentes: un string llamado "cmd", y dos numeros
 	// integer llamados "firstParameter" y "secondParameter".
 	// De esta forma, podemos introducir información al micro desde el puerto serial.
-	sscanf(ptrBufferReception, "%s %u %u %s", cmd, &firstParameter, &secondParameter, userMsg);
+	sscanf(ptrBufferReception, "%s %u %u %u", cmd, &firstParameter, &secondParameter, &thirdParameter);
 
 	// Este primer comando imprime una lista con los otros comandos que tiene el equipo
 	if(strcmp(cmd, "help") == 0){
@@ -347,9 +344,9 @@ void parseCommands(char *ptrBufferReception){
 		writeMsg(&handlerCommTerminal, "2) selectClock  -- Permite elegir la señal interna del MCU\n");
 		writeMsg(&handlerCommTerminal, "3) selectPrescaler -- Permite elegir el preescaler de la señal seleccionada\n");
 		writeMsg(&handlerCommTerminal, "4) initialHours -- steps to initialize the LCD\n");
-		writeMsg(&handlerCommTerminal, "5) initalMonths -- simple Test for the LCD\n");
+		writeMsg(&handlerCommTerminal, "5) initalDate -- simple Test for the LCD\n");
 		writeMsg(&handlerCommTerminal, "6) getHours # -- Change the Led_state period (us)\n");
-		writeMsg(&handlerCommTerminal, "7) getMonths # -- Automatic LCD update (# -> 1/0)\n");
+		writeMsg(&handlerCommTerminal, "7) getDate # -- Automatic LCD update (# -> 1/0)\n");
 		writeMsg(&handlerCommTerminal, "8) conversionADC  -- Para configurar la frecuencia del muestreo de una señal PWM\n");
 		writeMsg(&handlerCommTerminal, "9) arregloADC  -- Se presenta en forma de arreglo los datos muestreados\n");
 		writeMsg(&handlerCommTerminal, "10) ValoresAcelerometro  -- Permite lanzar la captura de datos\n");
@@ -375,6 +372,9 @@ void parseCommands(char *ptrBufferReception){
 			writeMsg(&handlerCommTerminal, bufferData);
 
 		}
+		else{
+			writeMsg(&handlerCommTerminal, "Error en el comando ingresado");
+		}
 	}
 
 	/* Comandos para seleccionar el prescaler de la señal en el MCO1 */
@@ -387,7 +387,7 @@ void parseCommands(char *ptrBufferReception){
 			writeMsg(&handlerCommTerminal, bufferData);
 		}
 		else{
-			writeMsg(&handlerCommTerminal, "Error en el comando ingresado");
+			writeMsg(&handlerCommTerminal, "Error en el comando o valor del preescaler ingresado");
 		}
 	}
 
@@ -396,37 +396,51 @@ void parseCommands(char *ptrBufferReception){
 	// Configuración de la hora inicial
 	else if(strcmp(cmd, "initialHours") == 0)
 	{
-		writeMsg(&handlerCommTerminal, " Inicializacion time \n");
-		handlerRTC.RTC_Hours = firstParameter;
-		handlerRTC.RTC_Minutes = secondParameter;
-		handlerRTC.RTC_Seconds = 00;
-		RTC_Config(&handlerRTC);
-
+		if((firstParameter > 23) || (secondParameter > 59) || (thirdParameter > 59)){
+			writeMsg(&handlerCommTerminal, "\nError en el parámetro ingresado ");
+		}
+		else{
+			writeMsg(&handlerCommTerminal, " Inicializacion time \n");
+			handlerRTC.RTC_Hours = firstParameter;
+			handlerRTC.RTC_Minutes = secondParameter;
+			handlerRTC.RTC_Seconds = thirdParameter;
+			RTC_Config(&handlerRTC);
+			sprintf(bufferData,"\nHora configurada: %u:%u:%u",firstParameter,secondParameter,thirdParameter);
+			writeMsg(&handlerCommTerminal, bufferData);
+		}
 	}
 	/* Configuración fecha inicial */
-	else if(strcmp(cmd, "initalMonths") == 0){
-		writeMsg(&handlerCommTerminal, " Inicializacion date \n");
-		handlerRTC.RTC_Day = firstParameter;
-		handlerRTC.RTC_Mounth = secondParameter;
-		handlerRTC.RTC_Years = 23;
-		RTC_Config(&handlerRTC);
+	else if(strcmp(cmd, "initalDate") == 0){
+		if((firstParameter > 31) || (secondParameter > 12) || (thirdParameter > 3000)){
+			writeMsg(&handlerCommTerminal, "\n Parámetro Inválido");
+		}
+		else{
+			writeMsg(&handlerCommTerminal, " Inicializacion date \n");
+			handlerRTC.RTC_Day = firstParameter;
+			handlerRTC.RTC_Month = secondParameter;
+			handlerRTC.RTC_Years = thirdParameter;
+			RTC_Config(&handlerRTC);
+			sprintf(bufferData,"\nFecha configurada: %u/%u/%u",firstParameter,secondParameter,thirdParameter);
+			writeMsg(&handlerCommTerminal, bufferData);
+		}
+
 	}
 	/* configuración hora actual */
 	else if(strcmp(cmd, "getHours") == 0){
 		writeMsg(&handlerCommTerminal, " Actual Hour \n");
-		uint8_t hours = getHours(handlerRTC);
-		uint8_t minutes = getMinutes(handlerRTC);
-		uint8_t seconds = getSeconds(handlerRTC);
-		sprintf(bufferData, "La hora es: %u : %u : %u \n", hours, minutes, seconds);
+		hours   = getHours(handlerRTC);
+		minutes = getMinutes(handlerRTC);
+		seconds = getSeconds(handlerRTC);
+		sprintf(bufferData, "La hora es: %u : %u : %u \n", (unsigned int)hours, minutes, seconds);
 		writeMsg(&handlerCommTerminal, bufferData);
 
 	}
 	/* Configuración fecha actual */
-	else if(strcmp(cmd, "getMonths") == 0){
+	else if(strcmp(cmd, "getDate") == 0){
 		writeMsg(&handlerCommTerminal, " Actual date \n");
-		uint8_t days = getDays(handlerRTC);
-		uint8_t mounths = getMounths(handlerRTC);
-		sprintf(bufferData, "La fecha es: %u / %u / 2023 \n", days, mounths);
+		days   = getDays(handlerRTC);
+		months = getDate(handlerRTC);
+		sprintf(bufferData, "La fecha es: %u / %u / 23 \n", days, months);
 		writeMsg(&handlerCommTerminal, bufferData);
 
 	}
@@ -446,7 +460,6 @@ void parseCommands(char *ptrBufferReception){
 
 	}else if(strcmp(cmd, "arregloADC") == 0){
 		writeMsg(&handlerCommTerminal, "CMD: Mostrar arreglos de la conversión ADC\n");
-
 		testingADC();
 	}
 
@@ -474,20 +487,23 @@ void parseCommands(char *ptrBufferReception){
 	else if(strcmp(cmd, "OnFFT") == 0){
 		int k = 0;
 		int d = 0;
+
 		sprintf(bufferData, "\n");
-		writeMsg(&handlerCommTerminal, "Se empiezan a tomar los datos de la FFT");
+		writeMsg(&handlerCommTerminal, "Se empiezan a tomar los datos de la FFT\n");
+
 		if(statusInitFFT == ARM_MATH_SUCCESS){
 			float32_t transZ = 0;
 			uint8_t transMax = 0;
 			arm_rfft_fast_f32(&config_Rfft_fast_f32, arrayZ, transformedSignal, ifftFlag);
 			arm_abs_f32(transformedSignal, arrayZ, fftSize);
+//			transMax = arrayZ[0];
 			for(k= 0; k < fftSize; k++){
 				if(k%2){
 					if(arrayZ[k]>transMax){
 						transMax = d;
 						transZ = 2*arrayZ[k];
 					}
-					sprintf(bufferMsg, "%u: %#.6f\n", d, 2*arrayZ[k]);
+					sprintf(bufferData, "%u ; %#.6f\n", d, 2*arrayZ[k]);
 					writeMsg(&handlerCommTerminal, bufferData);
 					 d++;
 				}
@@ -495,12 +511,12 @@ void parseCommands(char *ptrBufferReception){
 			}
 			sprintf(bufferData, " El valor maximo de z es %f con indice %u\n", transZ, transMax);
 			writeMsg(&handlerCommTerminal, bufferData);
-			float frecFFT = transMax * ((2*3.14))/((fftSize/2)*0.005);
+			float frecFFT = (transMax * 200)/((fftSize));
 			sprintf(bufferData, " La frecuencia es %f \n", frecFFT);
 			writeMsg(&handlerCommTerminal, bufferData);
 		}
 	}else{
-		writeMsg(&handlerCommTerminal, "FFT no inicializada");
+		writeMsg(&handlerCommTerminal, "Revise su error en el comando o parametro ingresado");
 	}
 	rxData = '\0';
 }
@@ -587,4 +603,6 @@ void testingADC(void){
 		adcIsComplete = 0;
 	}
 }
+
+
 
