@@ -453,7 +453,7 @@ void parseCommands(char *ptrBufferReception){
 		time = (1000000/freqInput); //Aquí el periodo queda
 
 		dutty = time/2;
-		updateFrequency(&handlerPWM, time);
+		updateFrequency(&handlerPWM, time); // Actualizar la frecuencia que se esta ingresando
 		updateDuttyCycle(&handlerPWM, dutty);
 		writeMsg(&handlerCommTerminal, "Frecuencia de muestreo actualizada");
 		}
