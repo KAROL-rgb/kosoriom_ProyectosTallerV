@@ -29,6 +29,7 @@ GPIO_Handler_t handlerSpiMISO = { 0 };
 GPIO_Handler_t handlerSpiMOSI = { 0 };
 GPIO_Handler_t handlerSpiSS = { 0 };
 BasicTimer_Handler_t handlerStateOKTimer = { 0 };
+BasicTimer_Handler_t handlerTimerRandom = { 0 };
 SPI_Handler_t handlerSpiPort = { 0 };
 /***************************************** Definiciones para ADC *****************************************/
 ADC_Config_t adcConfig = { 0 };
@@ -53,22 +54,84 @@ uint32_t counterDelay = 0;
 uint8_t var = { 0 };
 uint16_t memoria[8];
 
+uint8_t myVariable = 42;
+uint8_t *ptr = &myVariable;
+uint16_t randomSeed;
+uint16_t randomNumber;
+
 uint8_t col = 0;
 uint8_t save = 0;
 uint8_t flag = 0;
+uint8_t rxData = 0; // Para valores random
+char bufferData[128] = { 0 };
 
 int test = 0;
 /* Definición de las funciones del programa a utilizar */
+
 uint8_t MatrixLed_writeData(uint8_t digit, uint8_t seg);
+
 void initSystem(void);
 
 void traducir(int matriz[32][8]);
 
 void mover(int punto[1][2], int matriz[32][8]);
 
-int movimientoPalito(int cuenta, int punto1[1][2], int punto2[1][2],
-		int punto3[1][2], int punto4[1][2], int matriz1[8][8],
-		int matriz2[8][8], int matriz3[8][8], int matriz4[8][8]);
+int movimientoT(int punto1[1][2], int punto2[1][2], int punto3[1][2],
+		int punto4[1][2], int matriz[32][8]);
+
+int movimientoTGiro1(int punto1[1][2], int punto2[1][2], int punto3[1][2],
+		int punto4[1][2], int matriz[32][8]);
+
+int movimientoTGiro2(int punto1[1][2], int punto2[1][2], int punto3[1][2],
+		int punto4[1][2], int matriz[32][8]);
+
+int movimientoTGiro3(int punto1[1][2], int punto2[1][2], int punto3[1][2],
+		int punto4[1][2], int matriz[32][8]);
+
+int movimientoPalito(int punto1[1][2], int punto2[1][2], int punto3[1][2],
+		int punto4[1][2], int matriz[32][8]);
+
+int movimientoPalitoGiro(int punto1[1][2], int punto2[1][2], int punto3[1][2],
+		int punto4[1][2], int matriz[32][8]);
+
+int movimientoLInvertida(int punto1[1][2], int punto2[1][2], int punto3[1][2],
+		int punto4[1][2], int matriz[32][8]);
+
+int movimientoLInvertidaGiro1(int punto1[1][2], int punto2[1][2],
+		int punto3[1][2], int punto4[1][2], int matriz[32][8]);
+
+int movimientoLInvertidaGiro2(int punto1[1][2], int punto2[1][2],
+		int punto3[1][2], int punto4[1][2], int matriz[32][8]);
+
+int movimientoLInvertidaGiro3(int punto1[1][2], int punto2[1][2],
+		int punto3[1][2], int punto4[1][2], int matriz[32][8]);
+
+int movimientoL(int punto1[1][2], int punto2[1][2], int punto3[1][2],
+		int punto4[1][2], int matriz[32][8]);
+
+int movimientoLGiro1(int punto1[1][2], int punto2[1][2], int punto3[1][2],
+		int punto4[1][2], int matriz[32][8]);
+
+int movimientoLGiro2(int punto1[1][2], int punto2[1][2], int punto3[1][2],
+		int punto4[1][2], int matriz[32][8]);
+
+int movimientoLGiro3(int punto1[1][2], int punto2[1][2], int punto3[1][2],
+		int punto4[1][2], int matriz[32][8]);
+
+int movimientoCubo(int punto1[1][2], int punto2[1][2], int punto3[1][2],
+		int punto4[1][2], int matriz[32][8]);
+
+int movimientoS(int punto1[1][2], int punto2[1][2], int punto3[1][2],
+		int punto4[1][2], int matriz[32][8]);
+
+int movimientoSGiro1(int punto1[1][2], int punto2[1][2], int punto3[1][2],
+		int punto4[1][2], int matriz[32][8]);
+
+int movimientoZ(int punto1[1][2], int punto2[1][2], int punto3[1][2],
+		int punto4[1][2], int matriz[32][8]);
+
+int movimientoZGiro1(int punto1[1][2], int punto2[1][2], int punto3[1][2],
+		int punto4[1][2], int matriz[32][8]);
 
 void initSystem(void) {
 //	config_SysTick_ms(200);
@@ -101,6 +164,15 @@ void initSystem(void) {
 	//Se carga la configuración del ADC
 	ADC_ConfigMultichannel(&adcConfig, 2);
 	adcExternalConfig(&adcConfig);
+
+	/* Timer para generar valores aleatorios */
+	handlerTimerRandom.ptrTIMx = TIM3;
+	handlerTimerRandom.TIMx_Config.TIMx_mode = BTIMER_MODE_UP;
+	handlerTimerRandom.TIMx_Config.TIMx_speed = 2;
+	handlerTimerRandom.TIMx_Config.TIMx_period = 65530;
+	handlerTimerRandom.TIMx_Config.TIMx_interruptEnable = 0;
+
+	BasicTimer_Config(&handlerTimerRandom);
 
 	hnadlerPinPWM.pGPIOx = GPIOB;
 	hnadlerPinPWM.GPIO_PinConfig.GPIO_PinNumber = PIN_10;
@@ -152,7 +224,7 @@ void Serial_Configuration(void) {
 	 */
 	handlerCommTerminal.ptrUSARTx = USART2;
 	handlerCommTerminal.USART_Config.USART_datasize = USART_DATASIZE_8BIT;
-	handlerCommTerminal.USART_Config.USART_parity = USART_PARITY_ODD;
+	handlerCommTerminal.USART_Config.USART_parity = USART_PARITY_NONE;
 	handlerCommTerminal.USART_Config.USART_stopbits = USART_STOPBIT_1;
 	handlerCommTerminal.USART_Config.USART_baudrate = USART_BAUDRATE_115200;
 	handlerCommTerminal.USART_Config.USART_mode = USART_MODE_RXTX;
@@ -438,19 +510,19 @@ void clearMatrix() {
 }
 
 int main(void) {
-	srand(time(NULL));
 
 	int matriz[32][8] = { 0 };
 
 	int punto1[1][2];
-//	int punto2[1][2];
-//	int punto3[1][2];
-//	int punto4[1][2];
+	int punto2[1][2];
+	int punto3[1][2];
+	int punto4[1][2];
 
-	matriz[30][1] = 1;
-	matriz[30][2] = 1;
-	matriz[31][1] = 1;
-	matriz[31][2] = 1;
+	matriz[30][3] = 1;
+	matriz[30][4] = 1;
+	matriz[31][3] = 1;
+	matriz[31][4] = 1;
+	matriz[4][3] = 1;
 
 	initSystem();
 	config_SysTick_ms(0);
@@ -458,567 +530,1586 @@ int main(void) {
 	Serial_Configuration();
 	clean();
 	clearMatrix();
+//	srand(joystick[1]);
+	srand(randomSeed);
 
-	punto1[0][0] = -1;
-	punto1[0][1] = 4;
+	// T
+//	punto1[0][0] = -1;
+//	punto1[0][1] = 3;
+//	punto2[0][0] = -2;
+//	punto2[0][1] = 2;
+//	punto3[0][0] = -2;
+//	punto3[0][1] = 4;
+//	punto4[0][0] = -2;
+//	punto4[0][1] = 3;
+//
+	// TGiro1
+//	punto1[0][0] = -1;
+//	punto1[0][1] = 4;
+//	punto2[0][0] = -2;
+//	punto2[0][1] = 3;
+//	punto3[0][0] = -2;
+//	punto3[0][1] = 4;
+//	punto4[0][0] = -3;
+//	punto4[0][1] = 4;
+
+	// TGiro3
+//	punto1[0][0] = -1;
+//	punto1[0][1] = 3;
 //	punto2[0][0] = -2;
 //	punto2[0][1] = 4;
-//	punto3[0][0] = -3;
+//	punto3[0][0] = -2;
+//	punto3[0][1] = 3;
+//	punto4[0][0] = -3;
+//	punto4[0][1] = 3;
+
+	// LInvGiro2
+//	punto1[0][0] = -1;
+//	punto1[0][1] = 3;
+//	punto2[0][0] = -3;
+//	punto2[0][1] = 4;
+//	punto3[0][0] = -2;
+//	punto3[0][1] = 3;
+//	punto4[0][0] = -3;
+//	punto4[0][1] = 3;
+
+	// LInvGiro3
+//	punto1[0][0] = -1;
+//	punto1[0][1] = 2;
+//	punto2[0][0] = -2;
+//	punto2[0][1] = 3;
+//	punto3[0][0] = -2;
 //	punto3[0][1] = 4;
-//	punto4[0][0] = -4;
-//	punto4[0][1] = 4;
-	mover(punto1, matriz);
-	delay_ms(1000);
-	traducir(matriz);
+//	punto4[0][0] = -2;
+//	punto4[0][1] = 2;
 
-	while(1) {
-		// int test = movimientoPalito(i, punto1, punto2, punto3, punto4, matriz);
-		//if (test == 1) {
+	// SGiro1
+	punto1[0][0] = -1;
+	punto1[0][1] = 4;
+	punto2[0][0] = -2;
+	punto2[0][1] = 3;
+	punto3[0][0] = -2;
+	punto3[0][1] = 4;
+	punto4[0][0] = -3;
+	punto4[0][1] = 3;
 
+	// Palito giro
+//	punto1[0][0] = -1;
+//	punto1[0][1] = 2;
+//	punto2[0][0] = -1;
+//	punto2[0][1] = 3;
+//	punto3[0][0] = -1;
+//	punto3[0][1] = 4;
+//	punto4[0][0] = -1;
+//	punto4[0][1] = 5;
 
-//		} else {
-//			break;
-//		}
-	}
-//	int punto[1][2];
-//	punto[0][0] = -1;
-//	punto[0][1] = 1;
-//	mover(punto, matriz1, matriz2, matriz3, matriz4);
+//	 L invertida giro 1
+//	punto1[0][0] = -1;
+//	punto1[0][1] = 3;
+//	punto2[0][0] = -1;
+//	punto2[0][1] = 4;
+//	punto3[0][0] = -1;
+//	punto3[0][1] = 5;
+//	punto4[0][0] = -3;
+//	punto4[0][1] = 3;
 
 	while (1) {
+		int test = movimientoSGiro1(punto1, punto2, punto3, punto4, matriz);
+
+		if (test == 1) {
+			delay_ms(500);
+			traducir(matriz);
+		} else {
+			break;
+		}
+	}
+//	while (1) {
+//	if(rxData != '\0'){
+//			writeChar(&handlerCommTerminal, rxData);
+//			switch(rxData){
+//			case 'k':{
+//				writeMsg(&handlerCommTerminal, "dummy message\n");
+//				break;
+//			}
+//			case 'r':{
+//				randomSeed = 0x1F & (TIM3->CNT);
+//				srand(randomSeed);
+//				(void)rand();
+//				randomNumber = rand();
+//				sprintf(bufferData, "randomNumber = %u \n", randomNumber);
+//				writeMsg(&handlerCommTerminal, bufferData);
+//				break;
+//			}
+//			}
+//			rxData = '\0';
+//		}
+//		//AQUI ESTARA LA VERIFICACION SI SE QUITA TODA UNA FILA PORQUE ESTA COMPLETA
+//
 //		int figura = rand() % 7;
-//		if(figura == 0){
-//			//T
-//			matriz1[0][0]=1;
-//			matriz1[0][1]=1;
-//			matriz1[0][2]=1;
-//			matriz1[1][1]=1;
-//			traducir(matriz1, matriz2, matriz3, matriz4);
-//			delay_ms(2000);
-//			matriz1[0][0]=0;
-//			matriz1[0][1]=0;
-//			matriz1[0][2]=0;
-//			matriz1[1][1]=0;
-//			traducir(matriz1, matriz2, matriz3, matriz4);
-//			delay_ms(2000);
+//		if (figura == 0) { //Cae T
+//			punto1[0][0] = -1;
+//			punto1[0][1] = 3;
+//			punto2[0][0] = -1;
+//			punto2[0][1] = 4;
+//			punto3[0][0] = -1;
+//			punto3[0][1] = 5;
+//			punto4[0][0] = -3;
+//			punto4[0][1] = 4;
+//			while (1) {
+//				int test = movimientoTGiro2(punto1, punto2, punto3, punto4,
+//						matriz);
+//				if (test == 1) {
+//					delay_ms(500);
+//					traducir(matriz);
+//				} else {
+//					break;
+//				}
+//			}
 //		}
-//		if(figura == 1){
-//			//Cuadro
-//			matriz1[4][0]=1;
-//			matriz1[4][1]=1;
-//			matriz1[5][0]=1;
-//			matriz1[5][1]=1;
-//			traducir(matriz1, matriz2, matriz3, matriz4);
-//			delay_ms(2000);
-//			matriz1[4][0]=0;
-//			matriz1[4][1]=0;
-//			matriz1[5][0]=0;
-//			matriz1[5][1]=0;
-//			traducir(matriz1, matriz2, matriz3, matriz4);
-//			delay_ms(2000);
+//
+//		if (figura == 1) { //Cae Palito
+//			punto1[0][0] = -1;
+//			punto1[0][1] = 3;
+//			punto2[0][0] = -3;
+//			punto2[0][1] = 3;
+//			punto3[0][0] = -4;
+//			punto3[0][1] = 3;
+//			punto4[0][0] = -5;
+//			punto4[0][1] = 3;
+//			while (1) {
+//				int test = movimientoPalito(punto1, punto2, punto3, punto4,
+//						matriz);
+//				if (test == 1) {
+//					delay_ms(500);
+//					traducir(matriz);
+//				} else {
+//					break;
+//				}
+//			}
+//
 //		}
-//		if(figura == 2){
-//			//L
-//			matriz1[4][3]=1;
-//			matriz1[5][3]=1;
-//			matriz1[6][3]=1;
-//			matriz1[6][4]=1;
-//			traducir(matriz1, matriz2, matriz3, matriz4);
-//			delay_ms(2000);
-//			matriz1[4][3]=0;
-//			matriz1[5][3]=0;
-//			matriz1[6][3]=0;
-//			matriz1[6][4]=0;
-//			traducir(matriz1, matriz2, matriz3, matriz4);
-//			delay_ms(2000);
+//
+//		if (figura == 2) { //Cae L invertida
+//			punto1[0][0] = -1;
+//			punto1[0][1] = 3;
+//			punto2[0][0] = -1;
+//			punto2[0][1] = 4;
+//			punto3[0][0] = -3;
+//			punto3[0][1] = 4;
+//			punto4[0][0] = -4;
+//			punto4[0][1] = 4;
+//			while (1) {
+//				int test = movimientoLInvertida(punto1, punto2, punto3, punto4, matriz);
+//				if (test == 1) {
+//					delay_ms(500);
+//					traducir(matriz);
+//				} else {
+//					break;
+//				}
+//			}
 //		}
+//		if (figura == 3) { //Cae L
+//			punto1[0][0] = -1;
+//			punto1[0][1] = 3;
+//			punto2[0][0] = -1;
+//			punto2[0][1] = 4;
+//			punto3[0][0] = -3;
+//			punto3[0][1] = 3;
+//			punto4[0][0] = -4;
+//			punto4[0][1] = 3;
+//			while (1) {
+//				int test = movimientoL(punto1, punto2, punto3, punto4, matriz);
+//				if (test == 1) {
+//					delay_ms(500);
+//					traducir(matriz);
+//				} else {
+//					break;
+//				}
+//			}
+//		}
+//
+//		if (figura == 4) { //Cae Cubo
+//			punto1[0][0] = -1;
+//			punto1[0][1] = 3;
+//			punto2[0][0] = -1;
+//			punto2[0][1] = 4;
+//			punto3[0][0] = -3;
+//			punto3[0][1] = 3;
+//			punto4[0][0] = -3;
+//			punto4[0][1] = 4;
+//			while (1) {
+//				int test = movimientoCubo(punto1, punto2, punto3, punto4,
+//						matriz);
+//				if (test == 1) {
+//					delay_ms(500);
+//					traducir(matriz);
+//				} else {
+//					break;
+//				}
+//			}
+//		}
+//
+//		if (figura == 5) { //Cae S
+//			punto1[0][0] = -1;
+//			punto1[0][1] = 4;
+//			punto2[0][0] = -1;
+//			punto2[0][1] = 5;
+//			punto3[0][0] = -2;
+//			punto3[0][1] = 3;
+//			punto4[0][0] = -2;
+//			punto4[0][1] = 4;
+//			while (1) {
+//				int test = movimientoS(punto1, punto2, punto3, punto4, matriz);
+//				if (test == 1) {
+//					delay_ms(500);
+//					traducir(matriz);
+//				} else {
+//					break;
+//				}
+//			}
+//		}
+//
+//		if (figura == 6) { //Cae Z
+//			punto1[0][0] = -1;
+//			punto1[0][1] = 4;
+//			punto2[0][0] = -1;
+//			punto2[0][1] = 5;
+//			punto3[0][0] = -2;
+//			punto3[0][1] = 3;
+//			punto4[0][0] = -2;
+//			punto4[0][1] = 4;
+//			while (1) {
+//				int test = movimientoZ(punto1, punto2, punto3, punto4, matriz);
+//				if (test == 1) {
+//					delay_ms(500);
+//					traducir(matriz);
+//				} else {
+//					break;
+//				}
+//			}
+//		}
+//		//AQUI ESTARA LA VERIFICACION SI SE PIERDE EL JUEGO
+//
+//	}
+	return 0;
+}
+int movimientoT(int punto1[1][2], int punto2[1][2], int punto3[1][2],
+		int punto4[1][2], int matriz[32][8]) {
+	if (punto1[0][0] == -1) {	//Solo se verifica la base en el primer paso
+		if (matriz[punto1[0][0] + 1][punto1[0][1]] == 0) {// Si la matriz en la fila siguiente, misma columna, esta desocupada.
+			// Movimiento de la base por fuera de la matriz
+			matriz[punto1[0][0] + 1][punto1[0][1]] = 1; // Prendo luz siguiente, sin apagar la anterior porque no existe
+
+			punto1[0][0] = punto1[0][0] + 1;
+			punto2[0][0] = punto2[0][0] + 1;
+			punto3[0][0] = punto3[0][0] + 1;
+			punto4[0][0] = punto4[0][0] + 1;
+			return 1;
+		} else {
+			return 0; //Se perdio el juego, pues no se puede ingresar una nueva figura
+		}
+	}
+	if (punto1[0][0] == 0) { //Solo se verifica la base en el primer paso
+		if ((matriz[punto1[0][0] + 1][punto1[0][1]] == 0)
+				&& (matriz[punto2[0][0] + 1][punto2[0][1]] == 0)
+				&& (matriz[punto3[0][0] + 1][punto3[0][1]] == 0)) {	// Si la matriz en la fila siguiente, misma columna, esta desocupada.
+			// Movimiento de la base por fuera de la matriz
+			matriz[punto1[0][0]][punto1[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto1[0][0] + 1][punto1[0][1]] = 1; // Se prende la siguiente
+			punto1[0][0] = punto1[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			matriz[punto2[0][0] + 1][punto2[0][1]] = 1;
+			punto2[0][0] = punto2[0][0] + 1;
+
+			matriz[punto3[0][0] + 1][punto3[0][1]] = 1;
+			punto3[0][0] = punto3[0][0] + 1;
+
+			matriz[punto4[0][0] + 1][punto4[0][1]] = 1;
+			punto4[0][0] = punto4[0][0] + 1;
+
+			return 1;
+
+		} else {
+			return 0; //Se perdio el juego, pues no se puede ingresar una nueva figura
+		}
+	} else {
+		if ((matriz[punto1[0][0] + 1][punto1[0][1]] == 0)
+				&& (matriz[punto2[0][0] + 1][punto2[0][1]] == 0)
+				&& (matriz[punto3[0][0] + 1][punto3[0][1]] == 0)) { // Si la matriz en la fila siguiente, misma columna, esta desocupada.
+
+			matriz[punto1[0][0]][punto1[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto1[0][0] + 1][punto1[0][1]] = 1; // Se prende la siguiente
+			punto1[0][0] = punto1[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			matriz[punto2[0][0]][punto2[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto2[0][0] + 1][punto2[0][1]] = 1; // Se prende la siguiente
+			punto2[0][0] = punto2[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			matriz[punto3[0][0]][punto3[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto3[0][0] + 1][punto3[0][1]] = 1; // Se prende la siguiente
+			punto3[0][0] = punto3[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			matriz[punto4[0][0]][punto4[0][1]] = 0;
+			matriz[punto4[0][0] + 1][punto4[0][1]] = 1;
+			punto4[0][0] = punto4[0][0] + 1;
+
+			return 1; //SI SE PUDO BAJAR
+		} else {
+			return 0;
+		}
 	}
 	return 0;
 }
 
-int movimientoPalito(int cuenta, int punto1[1][2], int punto2[1][2],
-		int punto3[1][2], int punto4[1][2], int matriz1[8][8],
-		int matriz2[8][8], int matriz3[8][8], int matriz4[8][8]) {
-	if (cuenta >= 0 && cuenta <= 7) {
-		// Entra en matriz 1
-		if (matriz1[punto1[0][0] + 1][punto1[0][1]] == 0) {	// Si la matriz en la fila siguiente, misma columna, esta desocupada.
+int movimientoTGiro1(int punto1[1][2], int punto2[1][2], int punto3[1][2],
+		int punto4[1][2], int matriz[32][8]) {
+	if (punto1[0][0] == -1) {	//Solo se verifica la base en el primer paso
+		if (matriz[punto1[0][0] + 1][punto1[0][1]] == 0) {// Si la matriz en la fila siguiente, misma columna, esta desocupada.
+			// Movimiento de la base por fuera de la matriz
+			matriz[punto1[0][0] + 1][punto1[0][1]] = 1; // Prendo luz siguiente, sin apagar la anterior porque no existe
 
-			if (punto1[0][0] >= 0) {
-				// Movimiento dentro de la matriz
-				matriz1[punto1[0][0]][punto1[0][1]] = 0;// Se apaga la luz donde estoy
-				matriz1[punto1[0][0] + 1][punto1[0][1]] = 1; // Se prende la siguiente
-				punto1[0][0] = punto1[0][0] + 1; // Le sumo 1 a la fila del punto
-				if (punto2[0][0] >= 0) {
-					matriz1[punto2[0][0]][punto2[0][1]] = 0;
-					matriz1[punto2[0][0] + 1][punto2[0][1]] = 1;
-					punto2[0][0] = punto2[0][0] + 1;
-				}
-				if (punto3[0][0] >= 0) {
-					matriz1[punto3[0][0]][punto3[0][1]] = 0;
-					matriz1[punto3[0][0] + 1][punto3[0][1]] = 1;
-					punto3[0][0] = punto3[0][0] + 1;
-				}
-				if (punto4[0][0] >= 0) {
-					matriz1[punto4[0][0]][punto4[0][1]] = 0;
-					matriz1[punto4[0][0] + 1][punto4[0][1]] = 1;
-					punto4[0][0] = punto4[0][0] + 1;
-				}
-				if (punto2[0][0] < 0) {
-					punto2[0][0] = punto2[0][0] + 1;
-				}
-				if (punto3[0][0] < 0) {
-					punto3[0][0] = punto3[0][0] + 1;
-				}
-				if (punto4[0][0] < 0) {
-					punto4[0][0] = punto4[0][0] + 1;
-				}
-				if (punto2[0][0] == -1) { // Va a entra a a la matriz el punto
-					matriz1[punto2[0][0] + 1][punto2[0][1]] = 1;
-					punto2[0][0] = punto2[0][0] + 1;
-				}
-				if (punto3[0][0] == -1) {
-					matriz1[punto3[0][0] + 1][punto3[0][1]] = 1;
-					punto3[0][0] = punto3[0][0] + 1;
-				}
-				if (punto4[0][0] == -1) {
-					matriz1[punto4[0][0] + 1][punto4[0][1]] = 1;
-					punto4[0][0] = punto4[0][0] + 1;
-				}
-				cuenta += 1;
-				return 1;
-			} else {
+			punto1[0][0] = punto1[0][0] + 1;
+			punto2[0][0] = punto2[0][0] + 1;
+			punto3[0][0] = punto3[0][0] + 1;
+			punto4[0][0] = punto4[0][0] + 1;
+			return 1;
+		} else {
+			return 0; //Se perdio el juego, pues no se puede ingresar una nueva figura
+		}
+	}
+	if (punto1[0][0] == 0) { //Solo se verifica la base en el primer paso
+		if (matriz[punto1[0][0] + 1][punto1[0][1]] == 0
+				&& matriz[punto2[0][0] + 1][punto2[0][1]] == 0) { // Si la matriz en la fila siguiente, misma columna, esta desocupada.
 				// Movimiento de la base por fuera de la matriz
-				matriz1[punto1[0][0] + 1][punto1[0][1]] = 1; // Prendo luz siguiente, sin apagar la anterior porque no existe
-				punto1[0][0] = punto1[0][0] + 1;
-				if (punto2[0][0] == -1) {
-					matriz1[punto2[0][0] + 1][punto2[0][1]] = 1;
-					punto2[0][0] = punto2[0][0] + 1;
-				}
-				if (punto3[0][0] == -1) {
-					matriz1[punto3[0][0] + 1][punto3[0][1]] = 1;
-					punto3[0][0] = punto3[0][0] + 1;
-				}
-				if (punto4[0][0] == -1) {
-					matriz1[punto4[0][0] + 1][punto4[0][1]] = 1;
-					punto4[0][0] = punto4[0][0] + 1;
-				}
-				cuenta += 1;
-				return 1;
-			}
+			matriz[punto1[0][0]][punto1[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto1[0][0] + 1][punto1[0][1]] = 1; // Se prende la siguiente
+			punto1[0][0] = punto1[0][0] + 1; // Le sumo 1 a la fila del punto
 
+			matriz[punto2[0][0] + 1][punto2[0][1]] = 1;
+			punto2[0][0] = punto2[0][0] + 1;
+
+			matriz[punto3[0][0] + 1][punto3[0][1]] = 1;
+			punto3[0][0] = punto3[0][0] + 1;
+
+			punto4[0][0] = punto4[0][0] + 1;
+
+			return 1;
+
+		} else {
+			return 0; //Se perdio el juego, pues no se puede ingresar una nueva figura
+		}
+	}
+	if (punto1[0][0] == 1) { //Solo se verifica la base en el primer paso
+		if (matriz[punto1[0][0] + 1][punto1[0][1]] == 0
+				&& matriz[punto2[0][0] + 1][punto2[0][1]] == 0) { // Si la matriz en la fila siguiente, misma columna, esta desocupada.
+				// Movimiento de la base por fuera de la matriz
+			matriz[punto1[0][0]][punto1[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto1[0][0] + 1][punto1[0][1]] = 1; // Se prende la siguiente
+			punto1[0][0] = punto1[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			matriz[punto2[0][0]][punto2[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto2[0][0] + 1][punto2[0][1]] = 1; // Se prende la siguiente
+			punto2[0][0] = punto2[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			matriz[punto3[0][0]][punto3[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto3[0][0] + 1][punto3[0][1]] = 1; // Se prende la siguiente
+			punto3[0][0] = punto3[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			matriz[punto4[0][0] + 1][punto4[0][1]] = 1;
+			punto4[0][0] = punto4[0][0] + 1;
+
+			return 1;
+
+		} else {
+			return 0; //Se perdio el juego, pues no se puede ingresar una nueva figura
+		}
+	} else {
+		if ((matriz[punto1[0][0] + 1][punto1[0][1]] == 0)
+				&& (matriz[punto2[0][0] + 1][punto2[0][1]] == 0)) { // Si la matriz en la fila siguiente, misma columna, esta desocupada.
+
+			matriz[punto1[0][0]][punto1[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto1[0][0] + 1][punto1[0][1]] = 1; // Se prende la siguiente
+			punto1[0][0] = punto1[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			matriz[punto2[0][0]][punto2[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto2[0][0] + 1][punto2[0][1]] = 1; // Se prende la siguiente
+			punto2[0][0] = punto2[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			matriz[punto3[0][0]][punto3[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto3[0][0] + 1][punto3[0][1]] = 1; // Se prende la siguiente
+			punto3[0][0] = punto3[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			matriz[punto4[0][0]][punto4[0][1]] = 0;
+			matriz[punto4[0][0] + 1][punto4[0][1]] = 1;
+			punto4[0][0] = punto4[0][0] + 1;
+
+			return 1; //SI SE PUDO BAJAR
 		} else {
 			return 0;
 		}
 	}
-	if (cuenta >= 8 && cuenta <= 15) { //Entra en la segunda matriz
-		if (matriz2[punto1[0][0] - 7][punto1[0][1]] == 0) { //Se verifica que este vacio donde va a caer
-			if (punto1[0][0] - 7 >= 0) {
-				matriz2[punto1[0][0] - 8][punto1[0][1]] = 0;
-				matriz2[punto1[0][0] - 7][punto1[0][1]] = 1;
-				punto1[0][0] = punto1[0][0] + 1;
+	return 0;
+}
+int movimientoTGiro2(int punto1[1][2], int punto2[1][2], int punto3[1][2],
+		int punto4[1][2], int matriz[32][8]) {
+	if ((matriz[punto1[0][0] + 1][punto1[0][1]] == 0)
+			&& (matriz[punto2[0][0] + 1][punto2[0][1]] == 0)
+			&& (matriz[punto3[0][0] + 1][punto3[0][1]] == 0)) { // Si la matriz en la fila siguiente, misma columna, esta desocupada.
+		if (punto1[0][0] >= 0 && punto2[0][0] >= 0 && punto3[0][0] >= 0) {
+			// Movimiento dentro de la matriz
+			matriz[punto1[0][0]][punto1[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto1[0][0] + 1][punto1[0][1]] = 1; // Se prende la siguiente
+			punto1[0][0] = punto1[0][0] + 1; // Le sumo 1 a la fila del punto
 
-				if (punto2[0][0] - 7 >= 0) {
-					matriz2[punto2[0][0] - 8][punto2[0][1]] = 0;
-					matriz2[punto2[0][0] - 7][punto2[0][1]] = 1;
-					punto2[0][0] = punto2[0][0] + 1;
+			matriz[punto2[0][0]][punto2[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto2[0][0] + 1][punto2[0][1]] = 1; // Se prende la siguiente
+			punto2[0][0] = punto2[0][0] + 1; // Le sumo 1 a la fila del punto
 
-				}
-				if (punto3[0][0] - 7 >= 0) {
-					matriz2[punto3[0][0] - 8][punto3[0][1]] = 0;
-					matriz2[punto3[0][0] - 7][punto3[0][1]] = 1;
-					punto3[0][0] = punto3[0][0] + 1;
-				}
-				if (punto4[0][0] - 7 >= 0) {
-					matriz2[punto4[0][0] - 8][punto4[0][1]] = 0;
-					matriz2[punto4[0][0] - 7][punto4[0][1]] = 1;
-					punto4[0][0] = punto4[0][0] + 1;
-				}
-				if (punto2[0][0] - 8 < 0) {
-					punto2[0][0] = punto2[0][0] + 1;
-					matriz2[punto2[0][0]][punto2[0][1]] = 0;
-				}
-				if (punto3[0][0] - 8 < 0) {
-					punto3[0][0] = punto3[0][0] + 1;
-					matriz2[punto3[0][0]][punto3[0][1]] = 0;
-				}
-				if (punto4[0][0] - 8 < 0) {
-					punto4[0][0] = punto4[0][0] + 1;
-					matriz2[punto3[0][0]][punto3[0][1]] = 0;
-				}
-				cuenta += 1;
-				return 1;
+			matriz[punto3[0][0]][punto3[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto3[0][0] + 1][punto3[0][1]] = 1; // Se prende la siguiente
+			punto3[0][0] = punto3[0][0] + 1; // Le sumo 1 a la fila del punto
 
-			} else {
-				matriz2[punto1[0][0] - 7][punto1[0][1]] = 1;
-				punto1[0][0] = punto1[0][0] + 1;
-				matriz1[punto1[0][0]][punto1[0][1]] = 0;
-				if (punto2[0][0] - 8 < 0) {
-					punto2[0][0] = punto2[0][0] + 1;
-					matriz1[punto2[0][0]][punto2[0][1]] = 0;
-				}
-				if (punto3[0][0] - 8 < 0) {
-					punto3[0][0] = punto3[0][0] + 1;
-					matriz1[punto3[0][0]][punto3[0][1]] = 0;
-				}
-				if (punto4[0][0] - 8 < 0) {
-					punto4[0][0] = punto4[0][0] + 1;
-					matriz1[punto3[0][0]][punto3[0][1]] = 0;
-				}
+			if (punto4[0][0] >= 0) { //Si se mueve dentro de la matriz, hara lo mismo que las bases
+				matriz[punto4[0][0]][punto4[0][1]] = 0;
+				matriz[punto4[0][0] + 1][punto4[0][1]] = 1;
+				punto4[0][0] = punto4[0][0] + 1;
 			}
-			cuenta += 1;
+
+			if (punto4[0][0] < -1) { //Si esta por fuera, solo caera, sin iluminar
+				punto4[0][0] = punto4[0][0] + 1;
+			}
+
+			if (punto4[0][0] == -1) { //Si esta a punto de entrar en la matriz
+				matriz[punto4[0][0] + 1][punto4[0][1]] = 1;
+				punto4[0][0] = punto4[0][0] + 1;
+			}
+
+			return 1; //SI SE PUDO BAJAR
+
+		} else {
+			// Movimiento de la base por fuera de la matriz
+			matriz[punto1[0][0] + 1][punto1[0][1]] = 1; // Prendo luz siguiente, sin apagar la anterior porque no existe
+
+			matriz[punto2[0][0] + 1][punto2[0][1]] = 1; // Prendo luz siguiente, sin apagar la anterior porque no existe
+
+			matriz[punto3[0][0] + 1][punto3[0][1]] = 1; // Prendo luz siguiente, sin apagar la anterior porque no existe
+
+			punto1[0][0] = punto1[0][0] + 1; //Se suma +1 en las filas de cada punto
+			punto2[0][0] = punto2[0][0] + 1;
+			punto3[0][0] = punto3[0][0] + 1;
+			punto4[0][0] = punto4[0][0] + 1;
+
+			return 1; //SE PUDO BAJAR
+		}
+	} else {
+		return 0; // NO SE PUDO BAJAR
+	}
+}
+int movimientoTGiro3(int punto1[1][2], int punto2[1][2], int punto3[1][2],
+		int punto4[1][2], int matriz[32][8]) {
+	if (punto1[0][0] == -1) {	//Solo se verifica la base en el primer paso
+		if (matriz[punto1[0][0] + 1][punto1[0][1]] == 0) {// Si la matriz en la fila siguiente, misma columna, esta desocupada.
+			// Movimiento de la base por fuera de la matriz
+			matriz[punto1[0][0] + 1][punto1[0][1]] = 1; // Prendo luz siguiente, sin apagar la anterior porque no existe
+
+			punto1[0][0] = punto1[0][0] + 1;
+			punto2[0][0] = punto2[0][0] + 1;
+			punto3[0][0] = punto3[0][0] + 1;
+			punto4[0][0] = punto4[0][0] + 1;
 			return 1;
+		} else {
+			return 0; //Se perdio el juego, pues no se puede ingresar una nueva figura
+		}
+	}
+	if (punto1[0][0] == 0) { //Solo se verifica la base en el primer paso
+		if (matriz[punto1[0][0] + 1][punto1[0][1]] == 0
+				&& matriz[punto2[0][0] + 1][punto2[0][1]] == 0) { // Si la matriz en la fila siguiente, misma columna, esta desocupada.
+				// Movimiento de la base por fuera de la matriz
+			matriz[punto1[0][0]][punto1[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto1[0][0] + 1][punto1[0][1]] = 1; // Se prende la siguiente
+			punto1[0][0] = punto1[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			matriz[punto2[0][0] + 1][punto2[0][1]] = 1;
+			punto2[0][0] = punto2[0][0] + 1;
+
+			matriz[punto3[0][0] + 1][punto3[0][1]] = 1;
+			punto3[0][0] = punto3[0][0] + 1;
+
+			punto4[0][0] = punto4[0][0] + 1;
+
+			return 1;
+
+		} else {
+			return 0; //Se perdio el juego, pues no se puede ingresar una nueva figura
+		}
+	}
+	if (punto1[0][0] == 1) { //Solo se verifica la base en el primer paso
+		if (matriz[punto1[0][0] + 1][punto1[0][1]] == 0
+				&& matriz[punto2[0][0] + 1][punto2[0][1]] == 0) { // Si la matriz en la fila siguiente, misma columna, esta desocupada.
+				// Movimiento de la base por fuera de la matriz
+			matriz[punto1[0][0]][punto1[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto1[0][0] + 1][punto1[0][1]] = 1; // Se prende la siguiente
+			punto1[0][0] = punto1[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			matriz[punto2[0][0]][punto2[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto2[0][0] + 1][punto2[0][1]] = 1; // Se prende la siguiente
+			punto2[0][0] = punto2[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			matriz[punto3[0][0]][punto3[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto3[0][0] + 1][punto3[0][1]] = 1; // Se prende la siguiente
+			punto3[0][0] = punto3[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			matriz[punto4[0][0] + 1][punto4[0][1]] = 1;
+			punto4[0][0] = punto4[0][0] + 1;
+
+			return 1;
+
+		} else {
+			return 0; //Se perdio el juego, pues no se puede ingresar una nueva figura
+		}
+	} else {
+		if ((matriz[punto1[0][0] + 1][punto1[0][1]] == 0)
+				&& (matriz[punto2[0][0] + 1][punto2[0][1]] == 0)) { // Si la matriz en la fila siguiente, misma columna, esta desocupada.
+
+			matriz[punto1[0][0]][punto1[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto1[0][0] + 1][punto1[0][1]] = 1; // Se prende la siguiente
+			punto1[0][0] = punto1[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			matriz[punto2[0][0]][punto2[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto2[0][0] + 1][punto2[0][1]] = 1; // Se prende la siguiente
+			punto2[0][0] = punto2[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			matriz[punto3[0][0]][punto3[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto3[0][0] + 1][punto3[0][1]] = 1; // Se prende la siguiente
+			punto3[0][0] = punto3[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			matriz[punto4[0][0]][punto4[0][1]] = 0;
+			matriz[punto4[0][0] + 1][punto4[0][1]] = 1;
+			punto4[0][0] = punto4[0][0] + 1;
+
+			return 1; //SI SE PUDO BAJAR
 		} else {
 			return 0;
 		}
 	}
-	if (cuenta >= 16 && cuenta <= 23) {
-		if (matriz3[punto1[0][0] - 15][punto1[0][1]] == 0) { //Se verifica que este vacio donde va a caer
-			if (punto1[0][0] - 15 >= 0) {
-				matriz3[punto1[0][0] - 16][punto1[0][1]] = 0;
-				matriz3[punto1[0][0] - 15][punto1[0][1]] = 1;
-				punto1[0][0] = punto1[0][0] + 1;
-
-				if (punto2[0][0] - 15 >= 0) {
-					matriz3[punto2[0][0] - 16][punto2[0][1]] = 0;
-					matriz3[punto2[0][0] - 15][punto2[0][1]] = 1;
-					punto2[0][0] = punto2[0][0] + 1;
-				}
-				if (punto3[0][0] - 15 >= 0) {
-					matriz3[punto3[0][0] - 16][punto3[0][1]] = 0;
-					matriz3[punto3[0][0] - 15][punto3[0][1]] = 1;
-					punto3[0][0] = punto3[0][0] + 1;
-				}
-				if (punto4[0][0] - 15 >= 0) {
-					matriz3[punto4[0][0] - 16][punto4[0][1]] = 0;
-					matriz3[punto4[0][0] - 15][punto4[0][1]] = 1;
-					punto4[0][0] = punto4[0][0] + 1;
-				}
-				if (punto2[0][0] - 16 < 0) {
-					punto2[0][0] = punto2[0][0] + 1;
-					matriz3[punto2[0][0]][punto2[0][1]] = 0;
-				}
-				if (punto3[0][0] - 16 < 0) {
-					punto3[0][0] = punto3[0][0] + 1;
-					matriz3[punto3[0][0]][punto3[0][1]] = 0;
-				}
-				if (punto4[0][0] - 16 < 0) {
-					punto4[0][0] = punto4[0][0] + 1;
-					matriz3[punto3[0][0]][punto3[0][1]] = 0;
-				}
-				cuenta += 1;
-				return 1;
-			} else {
-				matriz3[punto1[0][0] - 15][punto1[0][1]] = 1;
-				punto1[0][0] = punto1[0][0] + 1;
-				matriz3[punto1[0][0]][punto1[0][1]] = 0;
-				if (punto2[0][0] - 16 < 0) {
-					punto2[0][0] = punto2[0][0] + 1;
-					matriz3[punto2[0][0]][punto2[0][1]] = 0;
-				}
-				if (punto3[0][0] - 16 < 0) {
-					punto3[0][0] = punto3[0][0] + 1;
-					matriz3[punto3[0][0]][punto3[0][1]] = 0;
-				}
-				if (punto4[0][0] - 16 < 0) {
-					punto4[0][0] = punto4[0][0] + 1;
-					matriz3[punto3[0][0]][punto3[0][1]] = 0;
-				}
+	return 0;
+}
+int movimientoPalito(int punto1[1][2], int punto2[1][2], int punto3[1][2],
+		int punto4[1][2], int matriz[32][8]) {
+	if (matriz[punto1[0][0] + 1][punto1[0][1]] == 0) { // Si la matriz en la fila siguiente, misma columna, esta desocupada.
+		if (punto1[0][0] >= 0) {
+			// Movimiento dentro de la matriz
+			matriz[punto1[0][0]][punto1[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto1[0][0] + 1][punto1[0][1]] = 1; // Se prende la siguiente
+			punto1[0][0] = punto1[0][0] + 1; // Le sumo 1 a la fila del punto
+			if (punto2[0][0] >= 0) {
+				matriz[punto2[0][0]][punto2[0][1]] = 0;
+				matriz[punto2[0][0] + 1][punto2[0][1]] = 1;
+				punto2[0][0] = punto2[0][0] + 1;
 			}
-			cuenta += 1;
+			if (punto3[0][0] >= 0) {
+				matriz[punto3[0][0]][punto3[0][1]] = 0;
+				matriz[punto3[0][0] + 1][punto3[0][1]] = 1;
+				punto3[0][0] = punto3[0][0] + 1;
+			}
+			if (punto4[0][0] >= 0) {
+				matriz[punto4[0][0]][punto4[0][1]] = 0;
+				matriz[punto4[0][0] + 1][punto4[0][1]] = 1;
+				punto4[0][0] = punto4[0][0] + 1;
+			}
+			if (punto2[0][0] < -1) {
+				punto2[0][0] = punto2[0][0] + 1;
+			}
+			if (punto3[0][0] < -1) {
+				punto3[0][0] = punto3[0][0] + 1;
+			}
+			if (punto4[0][0] < -1) {
+				punto4[0][0] = punto4[0][0] + 1;
+			}
+			if (punto2[0][0] == -1) { // Va a entra a a la matriz el punto
+				matriz[punto2[0][0] + 1][punto2[0][1]] = 1;
+				punto2[0][0] = punto2[0][0] + 1;
+			}
+			if (punto3[0][0] == -1) {
+				matriz[punto3[0][0] + 1][punto3[0][1]] = 1;
+				punto3[0][0] = punto3[0][0] + 1;
+			}
+			if (punto4[0][0] == -1) {
+				matriz[punto4[0][0] + 1][punto4[0][1]] = 1;
+				punto4[0][0] = punto4[0][0] + 1;
+			}
 			return 1;
-
 		} else {
-			return 0;
-		}
-	}
-	if (cuenta >= 24 && cuenta <= 31) {
-		if (matriz4[punto1[0][0] - 23][punto1[0][1]] == 0) { //Se verifica que este vacio donde va a caer
-			if (punto1[0][0] - 23 >= 0) {
-				matriz4[punto1[0][0] - 24][punto1[0][1]] = 0;
-				matriz4[punto1[0][0] - 23][punto1[0][1]] = 1;
-				punto1[0][0] = punto1[0][0] + 1;
-				if (punto2[0][0] - 23 >= 0) {
-					matriz4[punto2[0][0] - 24][punto2[0][1]] = 0;
-					matriz4[punto2[0][0] - 23][punto2[0][1]] = 1;
-					punto2[0][0] = punto2[0][0] + 1;
-				}
-				if (punto3[0][0] - 23 >= 0) {
-					matriz4[punto3[0][0] - 24][punto3[0][1]] = 0;
-					matriz4[punto3[0][0] - 23][punto3[0][1]] = 1;
-					punto3[0][0] = punto3[0][0] + 1;
-				}
-				if (punto4[0][0] - 23 >= 0) {
-					matriz4[punto4[0][0] - 24][punto4[0][1]] = 0;
-					matriz4[punto4[0][0] - 23][punto4[0][1]] = 1;
-					punto4[0][0] = punto4[0][0] + 1;
-				}
-				if (punto2[0][0] - 24 < 0) {
-					punto2[0][0] = punto2[0][0] + 1;
-					matriz4[punto2[0][0]][punto2[0][1]] = 0;
-				}
-				if (punto3[0][0] - 24 < 0) {
-					punto3[0][0] = punto3[0][0] + 1;
-					matriz4[punto3[0][0]][punto3[0][1]] = 0;
-				}
-				if (punto4[0][0] - 24 < 0) {
-					punto4[0][0] = punto4[0][0] + 1;
-					matriz4[punto3[0][0]][punto3[0][1]] = 0;
-				}
-				cuenta += 1;
-				return 1;
-			} else {
-				matriz4[punto1[0][0] - 23][punto1[0][1]] = 1;
-				punto1[0][0] = punto1[0][0] + 1;
-				matriz4[punto1[0][0]][punto1[0][1]] = 0;
-				if (punto2[0][0] - 24 < 0) {
-					punto2[0][0] = punto2[0][0] + 1;
-					matriz4[punto2[0][0]][punto2[0][1]] = 0;
-				}
-				if (punto3[0][0] - 24 < 0) {
-					punto3[0][0] = punto3[0][0] + 1;
-					matriz4[punto3[0][0]][punto3[0][1]] = 0;
-				}
-				if (punto4[0][0] - 24 < 0) {
-					punto4[0][0] = punto4[0][0] + 1;
-					matriz4[punto3[0][0]][punto3[0][1]] = 0;
-				}
-			}
-			cuenta += 1;
+			// Movimiento de la base por fuera de la matriz
+			matriz[punto1[0][0] + 1][punto1[0][1]] = 1; // Prendo luz siguiente, sin apagar la anterior porque no existe
+			punto1[0][0] = punto1[0][0] + 1;
+			punto2[0][0] = punto2[0][0] + 1;
+			punto3[0][0] = punto3[0][0] + 1;
+			punto4[0][0] = punto4[0][0] + 1;
 			return 1;
-		}
-
-		else {
-			return 0;
 		}
 	} else {
 		return 0;
 	}
 }
+int movimientoPalitoGiro(int punto1[1][2], int punto2[1][2], int punto3[1][2],
+		int punto4[1][2], int matriz[32][8]) {
+	if ((matriz[punto1[0][0] + 1][punto1[0][1]] == 0)
+			&& (matriz[punto2[0][0] + 1][punto2[0][1]] == 0)
+			&& (matriz[punto3[0][0] + 1][punto3[0][1]] == 0)
+			&& (matriz[punto4[0][0] + 1][punto4[0][1]] == 0)) { // Si la matriz en la fila siguiente, misma columna, esta desocupada.
+		if (punto1[0][0] >= 0 && punto2[0][0] >= 0 && punto3[0][0] >= 0
+				&& punto4[0][0] >= 0) {
+			// Movimiento dentro de la matriz
+			matriz[punto1[0][0]][punto1[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto1[0][0] + 1][punto1[0][1]] = 1; // Se prende la siguiente
+			punto1[0][0] = punto1[0][0] + 1; // Le sumo 1 a la fila del punto
 
-//void movimiento(int segmento, int punto1[1][2], int punto2[1][2],
-//		int punto3[1][2], int punto4[1][2], int matriz1[8][8],
-//		int matriz2[8][8], int matriz3[8][8], int matriz4[8][8]) {
-//	//Ver si p1 es una base
-//	if (punto1[0][0] >= punto2[0][0] && punto1[0][0] >= punto3[0][0]
-//			&& punto1[0][0] >= punto4[0][0]) {
-//		if (punto1[0][0] == punto2[0][0] && punto1[0][0] == punto3[0][0]
-//				&& punto1[0][0] == punto4[0][0]) {
-////Base4
-//		}
-//		if (punto1[0][0] == punto2[0][0] && punto1[0][0] == punto3[0][0]
-//				&& punto1[0][0] != punto4[0][0]) {
-////Base3
-//		}
-//		if (punto1[0][0] == punto2[0][0] && punto1[0][0] != punto3[0][0]
-//				&& punto1[0][0] == punto4[0][0]) {
-////Base3
-//		}
-//		if (punto1[0][0] != punto2[0][0] && punto1[0][0] == punto3[0][0]
-//				&& punto1[0][0] == punto4[0][0]) {
-////Base3
-//		}
-//		if (punto1[0][0] == punto2[0][0] && punto1[0][0] != punto3[0][0]
-//				&& punto1[0][0] != punto4[0][0]) {
-////Base2
-//		}
-//		if (punto1[0][0] != punto2[0][0] && punto1[0][0] == punto3[0][0]
-//				&& punto1[0][0] != punto4[0][0]) {
-////Base2
-//		}
-//		if (punto1[0][0] != punto2[0][0] && punto1[0][0] != punto3[0][0]
-//				&& punto1[0][0] == punto4[0][0]) {
-////Base2
-//		}
-//		if (punto1[0][0] != punto2[0][0] && punto1[0][0] != punto3[0][0]
-//				&& punto1[0][0] != punto4[0][0]) {
-//			base1(segmento, punto1, punto2, punto3, punto4, matriz1, matriz2,
-//					matriz3, matriz4);
-//		}
-//	} else {
-//		//Si p1 no es una base, entonces hay que encontrarla en el resto, ver si p2 es una base
-//		if (punto2[0][0] >= punto3[0][0] && punto2[0][0] >= punto4[0][0]) {
-//			if (punto2[0][0] == punto3[0][0] && punto2[0][0] == punto4[0][0]) {
-////Base3
-//			}
-//			if (punto2[0][0] == punto3[0][0] && punto2[0][0] != punto4[0][0]) {
-////Base2
-//			}
-//			if (punto2[0][0] != punto3[0][0] && punto2[0][0] == punto4[0][0]) {
-////Base2
-//			}
-//			if (punto2[0][0] != punto3[0][0] && punto2[0][0] != punto4[0][0]) {
-////Base1
-//				base1(segmento, punto2, punto1, punto3, punto4, matriz1,
-//						matriz2, matriz3, matriz4);
-//			}
-//		} else {
-////Si p2 no es una base, entonces hay que encontrarla en el resto, ver si p3 es una base
-//			if (punto3[0][0] >= punto4[0][0]) {
-//				if (punto3[0][0] == punto4[0][0]) {
-//					//Base2
-//				}
-//				if (punto3[0][0] != punto4[0][0]) {
-//					//Base1
-//					base1(segmento, punto3, punto1, punto2, punto4, matriz1,
-//							matriz2, matriz3, matriz4);
-//				}
-//			} else {
-////Solo hay una base de 1 y es p4
-//				base1(segmento, punto4, punto1, punto2, punto3, matriz1,
-//						matriz2, matriz3, matriz4);
-//			}
-//		}
-//	}
-//}
+			matriz[punto2[0][0]][punto2[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto2[0][0] + 1][punto2[0][1]] = 1; // Se prende la siguiente
+			punto2[0][0] = punto2[0][0] + 1; // Le sumo 1 a la fila del punto
 
-//void base1(int segmento, int base1[1][2], int punto2[1][2], int punto3[1][2],
-//		int punto4[1][2], int matriz1[8][8], int matriz2[8][8],
-//		int matriz3[8][8], int matriz4[8][8]) {
-//
-//	if (segmento == 0) {
-//		//Entra en matriz 1
-//		if (matriz1[base1[0][0] + 1][base1[0][1]] == 0) {
-////Si la matriz en la fila siguiente, misma columna, esta desocupada.
-//			if (base1[0][0] >= 0) {
-////Movimiento dentro de la matriz
-//				matriz1[base1[0][0]][base1[0][1]] = 0; //Se apaga la luz donde estoy
-//				matriz1[base1[0][0] + 1][base1[0][1]] = 1; //Se prende la siguiente
-//				base1[0][0] = base1[0][0] + 1; //Le sumo 1 a la fila del punto
-//				if (punto2[0][0] >= 0) {
-//					matriz1[punto2[0][0]][punto2[0][1]] = 0;
-//					matriz1[punto2[0][0] + 1][punto2[0][1]] = 1;
-//					punto2[0][0] = punto2[0][0] + 1;
-//				}
-//				if (punto3[0][0] >= 0) {
-//					matriz1[punto3[0][0]][punto3[0][1]] = 0;
-//					matriz1[punto3[0][0] + 1][punto3[0][1]] = 1;
-//					punto3[0][0] = punto3[0][0] + 1;
-//				}
-//				if (punto4[0][0] >= 0) {
-//					matriz1[punto4[0][0]][punto4[0][1]] = 0;
-//					matriz1[punto4[0][0] + 1][punto4[0][1]] = 1;
-//					punto4[0][0] = punto4[0][0] + 1;
-//				}
-//				if (punto2[0][0] < 0) {
-//					punto2[0][0] = punto2[0][0] + 1;
-//				}
-//				if (punto3[0][0] < 0) {
-//					punto3[0][0] = punto3[0][0] + 1;
-//				}
-//				if (punto4[0][0] < 0) {
-//					punto4[0][0] = punto4[0][0] + 1;
-//				}
-//				if (punto2[0][0] == -1) { //Va a entra a a la matriz el punto
-//					matriz1[punto2[0][0] + 1][punto2[0][1]] = 1;
-//					punto2[0][0] = punto2[0][0] + 1;
-//				}
-//				if (punto3[0][0] == -1) {
-//					matriz1[punto3[0][0] + 1][punto3[0][1]] = 1;
-//					punto3[0][0] = punto3[0][0] + 1;
-//				}
-//				if (punto4[0][0] == -1) {
-//					matriz1[punto4[0][0] + 1][punto4[0][1]] = 1;
-//					punto4[0][0] = punto4[0][0] + 1;
-//				}
-//
-//				delay_ms(1000);
-//				traducir(matriz1, matriz2, matriz3, matriz4);
-//			} else {
-////Movimiento de la base por fuera de la matriz
-//				matriz1[base1[0][0] + 1][base1[0][1]] = 1; //Prendo luz siguiente, sin apagar la anterior porque no existe
-//				base1[0][0] = base1[0][0] + 1;
-//				if (punto2[0][0] == -1) {
-//					matriz1[punto2[0][0] + 1][punto2[0][1]] = 1;
-//					punto2[0][0] = punto2[0][0] + 1;
-//				}
-//				if (punto3[0][0] == -1) {
-//					matriz1[punto3[0][0] + 1][punto3[0][1]] = 1;
-//					punto3[0][0] = punto3[0][0] + 1;
-//				}
-//				if (punto4[0][0] == -1) {
-//					matriz1[punto4[0][0] + 1][punto4[0][1]] = 1;
-//					punto4[0][0] = punto4[0][0] + 1;
-//				}
-//
-//				delay_ms(1000);
-//				traducir(matriz1, matriz2, matriz3, matriz4);
-//			}
-//		}
-//	}
-//	if (segmento == 1) {
-//		if (matriz2[base1[0][0] - 7][base1[0][1]] == 0) {
-//			if (base1[0][0] - 8 >= 0) {
-//				matriz2[base1[0][0] - 8][base1[0][1]] = 0;
-//				matriz2[base1[0][0] - 7][base1[0][1]] = 1;
-//				base1[0][0] = base1[0][0] + 1;
-//				if (punto2[0][0] - 8 >= 0) {
-//					matriz2[punto2[0][0] - 8][punto2[0][1]] = 0;
-//					matriz2[punto2[0][0] - 7][punto2[0][1]] = 1;
-//					punto2[0][0] = punto2[0][0] + 1;
-//				}
-//				if (punto3[0][0] - 8 >= 0) {
-//					matriz2[punto3[0][0] - 8][punto3[0][1]] = 0;
-//					matriz2[punto3[0][0] - 7][punto3[0][1]] = 1;
-//					punto3[0][0] = punto3[0][0] + 1;
-//				}
-//				if (punto4[0][0] - 8 >= 0) {
-//					matriz2[punto4[0][0] - 8][punto4[0][1]] = 0;
-//					matriz2[punto4[0][0] - 7][punto4[0][1]] = 1;
-//					punto4[0][0] = punto4[0][0] + 1;
-//				}
-//				if (punto2[0][0] - 8 < 0) {
-//					punto2[0][0] = punto2[0][0] + 1;
-//					matriz1[punto2[0][0]][punto2[0][1]] = 0;
-//				}
-//				if (punto3[0][0] - 8 < 0) {
-//					punto3[0][0] = punto3[0][0] + 1;
-//					matriz1[punto3[0][0]][punto3[0][1]] = 0;
-//				}
-//				if (punto4[0][0] - 8 < 0) {
-//					punto4[0][0] = punto4[0][0] + 1;
-//					matriz1[punto3[0][0]][punto3[0][1]] = 0;
-//				}
-//
-//				delay_ms(1000);
-//				traducir(matriz1, matriz2, matriz3, matriz4);
-//			} else {
-//				matriz2[base1[0][0] - 7][base1[0][1]] = 1;
-//				base1[0][0] = base1[0][0] + 1;
-//				matriz1[base1[0][0]][base1[0][1]] = 0;
-//				if (punto2[0][0] - 8 < 0) {
-//					punto2[0][0] = punto2[0][0] + 1;
-//					matriz1[punto2[0][0]][punto2[0][1]] = 0;
-//				}
-//				if (punto3[0][0] - 8 < 0) {
-//					punto3[0][0] = punto3[0][0] + 1;
-//					matriz1[punto3[0][0]][punto3[0][1]] = 0;
-//				}
-//				if (punto4[0][0] - 8 < 0) {
-//					punto4[0][0] = punto4[0][0] + 1;
-//					matriz1[punto3[0][0]][punto3[0][1]] = 0;
-//				}
-//
-//				delay_ms(1000);
-//				traducir(matriz1, matriz2, matriz3, matriz4);
-//			}
-//		}
-//	}
-//}
-//void base2(int base1[1][2], int base2[1][2], int punto3[1][2], int punto4[1][2],
-//		int matriz1[8][8], int matriz2[8][8], int matriz3[8][8],
-//		int matriz4[8][8]) {
-//
-//}
-//void base3(int base1[1][2], int base2[1][2], int base3[1][2], int punto4[1][2],
-//		int matriz1[8][8], int matriz2[8][8], int matriz3[8][8],
-//		int matriz4[8][8]) {
-//
-//}
-//void base4(int base1[1][2], int punto2[1][2], int punto3[1][2],
-//		int punto4[1][2], int matriz1[8][8], int matriz2[8][8],
-//		int matriz3[8][8], int matriz4[8][8]) {
-//
-//}
+			matriz[punto3[0][0]][punto3[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto3[0][0] + 1][punto3[0][1]] = 1; // Se prende la siguiente
+			punto3[0][0] = punto3[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			matriz[punto4[0][0]][punto4[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto4[0][0] + 1][punto4[0][1]] = 1; // Se prende la siguiente
+			punto4[0][0] = punto4[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			return 1; //SI SE PUDO BAJAR
+
+		} else {
+			// Movimiento de la base por fuera de la matriz
+			matriz[punto1[0][0] + 1][punto1[0][1]] = 1; // Prendo luz siguiente, sin apagar la anterior porque no existe
+
+			matriz[punto2[0][0] + 1][punto2[0][1]] = 1; // Prendo luz siguiente, sin apagar la anterior porque no existe
+
+			matriz[punto3[0][0] + 1][punto3[0][1]] = 1; // Prendo luz siguiente, sin apagar la anterior porque no existe
+
+			matriz[punto4[0][0] + 1][punto4[0][1]] = 1; // Prendo luz siguiente, sin apagar la anterior porque no existe
+
+			punto1[0][0] = punto1[0][0] + 1; //Se suma +1 en las filas de cada punto
+			punto2[0][0] = punto2[0][0] + 1;
+			punto3[0][0] = punto3[0][0] + 1;
+			punto4[0][0] = punto4[0][0] + 1;
+
+			return 1; //SE PUDO BAJAR
+		}
+	} else {
+		return 0; // NO SE PUDO BAJAR
+	}
+}
+int movimientoLInvertida(int punto1[1][2], int punto2[1][2], int punto3[1][2],
+		int punto4[1][2], int matriz[32][8]) {
+	if ((matriz[punto1[0][0] + 1][punto1[0][1]] == 0)
+			&& (matriz[punto2[0][0] + 1][punto2[0][1]] == 0)) {
+		if (punto1[0][0] >= 0 && punto2[0][0] >= 0) {
+			// Movimiento dentro de la matriz
+			matriz[punto1[0][0]][punto1[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto1[0][0] + 1][punto1[0][1]] = 1; // Se prende la siguiente
+			punto1[0][0] = punto1[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			matriz[punto2[0][0]][punto2[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto2[0][0] + 1][punto2[0][1]] = 1; // Se prende la siguiente
+			punto2[0][0] = punto2[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			if (punto3[0][0] >= 0) { //Si se mueve dentro de la matriz, hara lo mismo que las bases
+				matriz[punto3[0][0]][punto3[0][1]] = 0;
+				matriz[punto3[0][0] + 1][punto3[0][1]] = 1;
+				punto3[0][0] = punto3[0][0] + 1;
+			}
+
+			if (punto4[0][0] >= 0) { //Si se mueve dentro de la matriz, hara lo mismo que las bases
+				matriz[punto4[0][0]][punto4[0][1]] = 0;
+				matriz[punto4[0][0] + 1][punto4[0][1]] = 1;
+				punto4[0][0] = punto4[0][0] + 1;
+			}
+
+			if (punto3[0][0] < -1) { //Si esta por fuera, solo caera, sin iluminar
+				punto3[0][0] = punto3[0][0] + 1;
+			}
+			if (punto4[0][0] < -1) { //Si esta por fuera, solo caera, sin iluminar
+				punto4[0][0] = punto4[0][0] + 1;
+			}
+
+			if (punto3[0][0] == -1) { //Si esta a punto de entrar en la matriz
+				matriz[punto3[0][0] + 1][punto3[0][1]] = 1;
+				punto3[0][0] = punto3[0][0] + 1;
+			}
+
+			if (punto4[0][0] == -1) { //Si esta a punto de entrar en la matriz
+				matriz[punto4[0][0] + 1][punto4[0][1]] = 1;
+				punto4[0][0] = punto4[0][0] + 1;
+			}
+
+			return 1; //SI SE PUDO BAJAR
+
+		} else {
+			// Movimiento de la base por fuera de la matriz
+			matriz[punto1[0][0] + 1][punto1[0][1]] = 1; // Prendo luz siguiente, sin apagar la anterior porque no existe
+
+			matriz[punto2[0][0] + 1][punto2[0][1]] = 1; // Prendo luz siguiente, sin apagar la anterior porque no existe
+
+			punto1[0][0] = punto1[0][0] + 1; //Se suma +1 en las filas de cada punto
+			punto2[0][0] = punto2[0][0] + 1;
+			punto3[0][0] = punto3[0][0] + 1;
+			punto4[0][0] = punto4[0][0] + 1;
+
+			return 1; //SE PUDO BAJAR
+		}
+	} else {
+		return 0; // NO SE PUDO BAJAR
+	}
+}
+int movimientoLInvertidaGiro1(int punto1[1][2], int punto2[1][2],
+		int punto3[1][2], int punto4[1][2], int matriz[32][8]) {
+	if ((matriz[punto1[0][0] + 1][punto1[0][1]] == 0)
+			&& (matriz[punto2[0][0] + 1][punto2[0][1]] == 0)
+			&& (matriz[punto3[0][0] + 1][punto3[0][1]] == 0)) { // Si la matriz en la fila siguiente, misma columna, esta desocupada.
+		if (punto1[0][0] >= 0 && punto2[0][0] >= 0 && punto3[0][0] >= 0) {
+			// Movimiento dentro de la matriz
+			matriz[punto1[0][0]][punto1[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto1[0][0] + 1][punto1[0][1]] = 1; // Se prende la siguiente
+			punto1[0][0] = punto1[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			matriz[punto2[0][0]][punto2[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto2[0][0] + 1][punto2[0][1]] = 1; // Se prende la siguiente
+			punto2[0][0] = punto2[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			matriz[punto3[0][0]][punto3[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto3[0][0] + 1][punto3[0][1]] = 1; // Se prende la siguiente
+			punto3[0][0] = punto3[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			if (punto4[0][0] >= 0) { //Si se mueve dentro de la matriz, hara lo mismo que las bases
+				matriz[punto4[0][0]][punto4[0][1]] = 0;
+				matriz[punto4[0][0] + 1][punto4[0][1]] = 1;
+				punto4[0][0] = punto4[0][0] + 1;
+			}
+
+			if (punto4[0][0] < -1) { //Si esta por fuera, solo caera, sin iluminar
+				punto4[0][0] = punto4[0][0] + 1;
+			}
+
+			if (punto4[0][0] == -1) { //Si esta a punto de entrar en la matriz
+				matriz[punto4[0][0] + 1][punto4[0][1]] = 1;
+				punto4[0][0] = punto4[0][0] + 1;
+			}
+
+			return 1; //SI SE PUDO BAJAR
+
+		} else {
+			// Movimiento de la base por fuera de la matriz
+			matriz[punto1[0][0] + 1][punto1[0][1]] = 1; // Prendo luz siguiente, sin apagar la anterior porque no existe
+
+			matriz[punto2[0][0] + 1][punto2[0][1]] = 1; // Prendo luz siguiente, sin apagar la anterior porque no existe
+
+			matriz[punto3[0][0] + 1][punto3[0][1]] = 1; // Prendo luz siguiente, sin apagar la anterior porque no existe
+
+			punto1[0][0] = punto1[0][0] + 1; //Se suma +1 en las filas de cada punto
+			punto2[0][0] = punto2[0][0] + 1;
+			punto3[0][0] = punto3[0][0] + 1;
+			punto4[0][0] = punto4[0][0] + 1;
+
+			return 1; //SE PUDO BAJAR
+		}
+	} else {
+		return 0; // NO SE PUDO BAJAR
+	}
+}
+int movimientoLInvertidaGiro2(int punto1[1][2], int punto2[1][2],
+		int punto3[1][2], int punto4[1][2], int matriz[32][8]) {
+	if (punto1[0][0] == -1) {	//Solo se verifica la base en el primer paso
+		if (matriz[punto1[0][0] + 1][punto1[0][1]] == 0) {// Si la matriz en la fila siguiente, misma columna, esta desocupada.
+			// Movimiento de la base por fuera de la matriz
+			matriz[punto1[0][0] + 1][punto1[0][1]] = 1; // Prendo luz siguiente, sin apagar la anterior porque no existe
+
+			punto1[0][0] = punto1[0][0] + 1;
+			punto2[0][0] = punto2[0][0] + 1;
+			punto3[0][0] = punto3[0][0] + 1;
+			punto4[0][0] = punto4[0][0] + 1;
+			return 1;
+		} else {
+			return 0; //Se perdio el juego, pues no se puede ingresar una nueva figura
+		}
+	}
+	if (punto1[0][0] == 0) { //Solo se verifica la base en el primer paso
+		if (matriz[punto1[0][0] + 1][punto1[0][1]] == 0) { // Si la matriz en la fila siguiente, misma columna, esta desocupada.
+			// Movimiento de la base por fuera de la matriz
+			matriz[punto1[0][0]][punto1[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto1[0][0] + 1][punto1[0][1]] = 1; // Se prende la siguiente
+			punto1[0][0] = punto1[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			matriz[punto3[0][0] + 1][punto3[0][1]] = 1;
+			punto3[0][0] = punto3[0][0] + 1;
+
+			punto2[0][0] = punto2[0][0] + 1;
+			punto4[0][0] = punto4[0][0] + 1;
+
+			return 1;
+
+		} else {
+			return 0; //Se perdio el juego, pues no se puede ingresar una nueva figura
+		}
+	}
+	if (punto1[0][0] == 1) { //Solo se verifica la base en el primer paso
+		if (matriz[punto1[0][0] + 1][punto1[0][1]] == 0
+				&& matriz[punto2[0][0] + 1][punto2[0][1]] == 0) { // Si la matriz en la fila siguiente, misma columna, esta desocupada.
+				// Movimiento de la base por fuera de la matriz
+			matriz[punto1[0][0]][punto1[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto1[0][0] + 1][punto1[0][1]] = 1; // Se prende la siguiente
+			punto1[0][0] = punto1[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			matriz[punto3[0][0]][punto3[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto3[0][0] + 1][punto3[0][1]] = 1; // Se prende la siguiente
+			punto3[0][0] = punto3[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			matriz[punto2[0][0] + 1][punto2[0][1]] = 1;
+			punto2[0][0] = punto2[0][0] + 1;
+			matriz[punto4[0][0] + 1][punto4[0][1]] = 1;
+			punto4[0][0] = punto4[0][0] + 1;
+
+			return 1;
+
+		} else {
+			return 0; //Se perdio el juego, pues no se puede ingresar una nueva figura
+		}
+	} else {
+		if ((matriz[punto1[0][0] + 1][punto1[0][1]] == 0)
+				&& (matriz[punto2[0][0] + 1][punto2[0][1]] == 0)) { // Si la matriz en la fila siguiente, misma columna, esta desocupada.
+
+			matriz[punto1[0][0]][punto1[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto1[0][0] + 1][punto1[0][1]] = 1; // Se prende la siguiente
+			punto1[0][0] = punto1[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			matriz[punto2[0][0]][punto2[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto2[0][0] + 1][punto2[0][1]] = 1; // Se prende la siguiente
+			punto2[0][0] = punto2[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			matriz[punto3[0][0]][punto3[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto3[0][0] + 1][punto3[0][1]] = 1; // Se prende la siguiente
+			punto3[0][0] = punto3[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			matriz[punto4[0][0]][punto4[0][1]] = 0;
+			matriz[punto4[0][0] + 1][punto4[0][1]] = 1;
+			punto4[0][0] = punto4[0][0] + 1;
+
+			return 1; //SI SE PUDO BAJAR
+		} else {
+			return 0;
+		}
+	}
+	return 0;
+}
+int movimientoLInvertidaGiro3(int punto1[1][2], int punto2[1][2],
+		int punto3[1][2], int punto4[1][2], int matriz[32][8]) {
+	if (punto1[0][0] == -1) {	//Solo se verifica la base en el primer paso
+		if (matriz[punto1[0][0] + 1][punto1[0][1]] == 0) {// Si la matriz en la fila siguiente, misma columna, esta desocupada.
+			// Movimiento de la base por fuera de la matriz
+			matriz[punto1[0][0] + 1][punto1[0][1]] = 1; // Prendo luz siguiente, sin apagar la anterior porque no existe
+
+			punto1[0][0] = punto1[0][0] + 1;
+			punto2[0][0] = punto2[0][0] + 1;
+			punto3[0][0] = punto3[0][0] + 1;
+			punto4[0][0] = punto4[0][0] + 1;
+			return 1;
+		} else {
+			return 0; //Se perdio el juego, pues no se puede ingresar una nueva figura
+		}
+	}
+	if (punto1[0][0] == 0) { //Solo se verifica la base en el primer paso
+		if ((matriz[punto1[0][0] + 1][punto1[0][1]] == 0)
+				&& (matriz[punto2[0][0] + 1][punto2[0][1]] == 0)
+				&& (matriz[punto3[0][0] + 1][punto3[0][1]] == 0)) { // Si la matriz en la fila siguiente, misma columna, esta desocupada.
+			// Movimiento de la base por fuera de la matriz
+			matriz[punto1[0][0]][punto1[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto1[0][0] + 1][punto1[0][1]] = 1; // Se prende la siguiente
+			punto1[0][0] = punto1[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			matriz[punto2[0][0] + 1][punto2[0][1]] = 1;
+			punto2[0][0] = punto2[0][0] + 1;
+			matriz[punto3[0][0] + 1][punto3[0][1]] = 1;
+			punto3[0][0] = punto3[0][0] + 1;
+			matriz[punto4[0][0] + 1][punto4[0][1]] = 1;
+			punto4[0][0] = punto4[0][0] + 1;
+			return 1;
+
+		} else {
+			return 0; //Se perdio el juego, pues no se puede ingresar una nueva figura
+		}
+	} else {
+		if ((matriz[punto1[0][0] + 1][punto1[0][1]] == 0)
+				&& (matriz[punto2[0][0] + 1][punto2[0][1]] == 0)
+				&& (matriz[punto3[0][0] + 1][punto3[0][1]] == 0)) { // Si la matriz en la fila siguiente, misma columna, esta desocupada.
+
+			matriz[punto1[0][0]][punto1[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto1[0][0] + 1][punto1[0][1]] = 1; // Se prende la siguiente
+			punto1[0][0] = punto1[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			matriz[punto2[0][0]][punto2[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto2[0][0] + 1][punto2[0][1]] = 1; // Se prende la siguiente
+			punto2[0][0] = punto2[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			matriz[punto3[0][0]][punto3[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto3[0][0] + 1][punto3[0][1]] = 1; // Se prende la siguiente
+			punto3[0][0] = punto3[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			matriz[punto4[0][0]][punto4[0][1]] = 0;
+			matriz[punto4[0][0] + 1][punto4[0][1]] = 1;
+			punto4[0][0] = punto4[0][0] + 1;
+
+			return 1; //SI SE PUDO BAJAR
+		} else {
+			return 0;
+		}
+	}
+	return 0;
+}
+int movimientoL(int punto1[1][2], int punto2[1][2], int punto3[1][2],
+		int punto4[1][2], int matriz[32][8]) {
+	if ((matriz[punto1[0][0] + 1][punto1[0][1]] == 0)
+			&& (matriz[punto2[0][0] + 1][punto2[0][1]] == 0)) {
+		if (punto1[0][0] >= 0 && punto2[0][0] >= 0) {
+			// Movimiento dentro de la matriz
+			matriz[punto1[0][0]][punto1[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto1[0][0] + 1][punto1[0][1]] = 1; // Se prende la siguiente
+			punto1[0][0] = punto1[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			matriz[punto2[0][0]][punto2[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto2[0][0] + 1][punto2[0][1]] = 1; // Se prende la siguiente
+			punto2[0][0] = punto2[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			if (punto3[0][0] >= 0) { //Si se mueve dentro de la matriz, hara lo mismo que las bases
+				matriz[punto3[0][0]][punto3[0][1]] = 0;
+				matriz[punto3[0][0] + 1][punto3[0][1]] = 1;
+				punto3[0][0] = punto3[0][0] + 1;
+			}
+
+			if (punto4[0][0] >= 0) { //Si se mueve dentro de la matriz, hara lo mismo que las bases
+				matriz[punto4[0][0]][punto4[0][1]] = 0;
+				matriz[punto4[0][0] + 1][punto4[0][1]] = 1;
+				punto4[0][0] = punto4[0][0] + 1;
+			}
+
+			if (punto3[0][0] < -1) { //Si esta por fuera, solo caera, sin iluminar
+				punto3[0][0] = punto3[0][0] + 1;
+			}
+			if (punto4[0][0] < -1) { //Si esta por fuera, solo caera, sin iluminar
+				punto4[0][0] = punto4[0][0] + 1;
+			}
+
+			if (punto3[0][0] == -1) { //Si esta a punto de entrar en la matriz
+				matriz[punto3[0][0] + 1][punto3[0][1]] = 1;
+				punto3[0][0] = punto3[0][0] + 1;
+			}
+
+			if (punto4[0][0] == -1) { //Si esta a punto de entrar en la matriz
+				matriz[punto4[0][0] + 1][punto4[0][1]] = 1;
+				punto4[0][0] = punto4[0][0] + 1;
+			}
+
+			return 1; //SI SE PUDO BAJAR
+
+		} else {
+			// Movimiento de la base por fuera de la matriz
+			matriz[punto1[0][0] + 1][punto1[0][1]] = 1; // Prendo luz siguiente, sin apagar la anterior porque no existe
+
+			matriz[punto2[0][0] + 1][punto2[0][1]] = 1; // Prendo luz siguiente, sin apagar la anterior porque no existe
+
+			punto1[0][0] = punto1[0][0] + 1; //Se suma +1 en las filas de cada punto
+			punto2[0][0] = punto2[0][0] + 1;
+			punto3[0][0] = punto3[0][0] + 1;
+			punto4[0][0] = punto4[0][0] + 1;
+
+			return 1; //SE PUDO BAJAR
+		}
+	} else {
+		return 0; // NO SE PUDO BAJAR
+	}
+}
+int movimientoLGiro1(int punto1[1][2], int punto2[1][2], int punto3[1][2],
+		int punto4[1][2], int matriz[32][8]) {
+	if (punto1[0][0] == -1) {	//Solo se verifica la base en el primer paso
+		if (matriz[punto1[0][0] + 1][punto1[0][1]] == 0) {// Si la matriz en la fila siguiente, misma columna, esta desocupada.
+			// Movimiento de la base por fuera de la matriz
+			matriz[punto1[0][0] + 1][punto1[0][1]] = 1; // Prendo luz siguiente, sin apagar la anterior porque no existe
+
+			punto1[0][0] = punto1[0][0] + 1;
+			punto2[0][0] = punto2[0][0] + 1;
+			punto3[0][0] = punto3[0][0] + 1;
+			punto4[0][0] = punto4[0][0] + 1;
+			return 1;
+		} else {
+			return 0; //Se perdio el juego, pues no se puede ingresar una nueva figura
+		}
+	}
+	if (punto1[0][0] == 0) { //Solo se verifica la base en el primer paso
+		if ((matriz[punto1[0][0] + 1][punto1[0][1]] == 0)
+				&& (matriz[punto2[0][0] + 1][punto2[0][1]] == 0)
+				&& (matriz[punto3[0][0] + 1][punto3[0][1]] == 0)) { // Si la matriz en la fila siguiente, misma columna, esta desocupada.
+			// Movimiento de la base por fuera de la matriz
+			matriz[punto1[0][0]][punto1[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto1[0][0] + 1][punto1[0][1]] = 1; // Se prende la siguiente
+			punto1[0][0] = punto1[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			matriz[punto2[0][0] + 1][punto2[0][1]] = 1;
+			punto2[0][0] = punto2[0][0] + 1;
+			matriz[punto3[0][0] + 1][punto3[0][1]] = 1;
+			punto3[0][0] = punto3[0][0] + 1;
+			matriz[punto4[0][0] + 1][punto4[0][1]] = 1;
+			punto4[0][0] = punto4[0][0] + 1;
+			return 1;
+
+		} else {
+			return 0; //Se perdio el juego, pues no se puede ingresar una nueva figura
+		}
+	} else {
+		if ((matriz[punto1[0][0] + 1][punto1[0][1]] == 0)
+				&& (matriz[punto2[0][0] + 1][punto2[0][1]] == 0)
+				&& (matriz[punto3[0][0] + 1][punto3[0][1]] == 0)) { // Si la matriz en la fila siguiente, misma columna, esta desocupada.
+
+			matriz[punto1[0][0]][punto1[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto1[0][0] + 1][punto1[0][1]] = 1; // Se prende la siguiente
+			punto1[0][0] = punto1[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			matriz[punto2[0][0]][punto2[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto2[0][0] + 1][punto2[0][1]] = 1; // Se prende la siguiente
+			punto2[0][0] = punto2[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			matriz[punto3[0][0]][punto3[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto3[0][0] + 1][punto3[0][1]] = 1; // Se prende la siguiente
+			punto3[0][0] = punto3[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			matriz[punto4[0][0]][punto4[0][1]] = 0;
+			matriz[punto4[0][0] + 1][punto4[0][1]] = 1;
+			punto4[0][0] = punto4[0][0] + 1;
+
+			return 1; //SI SE PUDO BAJAR
+		} else {
+			return 0;
+		}
+	}
+	return 0;
+}
+int movimientoLGiro2(int punto1[1][2], int punto2[1][2], int punto3[1][2],
+		int punto4[1][2], int matriz[32][8]) {
+	if (punto1[0][0] == -1) {	//Solo se verifica la base en el primer paso
+		if (matriz[punto1[0][0] + 1][punto1[0][1]] == 0) {// Si la matriz en la fila siguiente, misma columna, esta desocupada.
+			// Movimiento de la base por fuera de la matriz
+			matriz[punto1[0][0] + 1][punto1[0][1]] = 1; // Prendo luz siguiente, sin apagar la anterior porque no existe
+
+			punto1[0][0] = punto1[0][0] + 1;
+			punto2[0][0] = punto2[0][0] + 1;
+			punto3[0][0] = punto3[0][0] + 1;
+			punto4[0][0] = punto4[0][0] + 1;
+			return 1;
+		} else {
+			return 0; //Se perdio el juego, pues no se puede ingresar una nueva figura
+		}
+	}
+	if (punto1[0][0] == 0) { //Solo se verifica la base en el primer paso
+		if (matriz[punto1[0][0] + 1][punto1[0][1]] == 0) { // Si la matriz en la fila siguiente, misma columna, esta desocupada.
+			// Movimiento de la base por fuera de la matriz
+			matriz[punto1[0][0]][punto1[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto1[0][0] + 1][punto1[0][1]] = 1; // Se prende la siguiente
+			punto1[0][0] = punto1[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			matriz[punto3[0][0] + 1][punto3[0][1]] = 1;
+			punto3[0][0] = punto3[0][0] + 1;
+
+			punto2[0][0] = punto2[0][0] + 1;
+			punto4[0][0] = punto4[0][0] + 1;
+
+			return 1;
+
+		} else {
+			return 0; //Se perdio el juego, pues no se puede ingresar una nueva figura
+		}
+	}
+	if (punto1[0][0] == 1) { //Solo se verifica la base en el primer paso
+		if (matriz[punto1[0][0] + 1][punto1[0][1]] == 0
+				&& matriz[punto2[0][0] + 1][punto2[0][1]] == 0) { // Si la matriz en la fila siguiente, misma columna, esta desocupada.
+				// Movimiento de la base por fuera de la matriz
+			matriz[punto1[0][0]][punto1[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto1[0][0] + 1][punto1[0][1]] = 1; // Se prende la siguiente
+			punto1[0][0] = punto1[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			matriz[punto3[0][0]][punto3[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto3[0][0] + 1][punto3[0][1]] = 1; // Se prende la siguiente
+			punto3[0][0] = punto3[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			matriz[punto2[0][0] + 1][punto2[0][1]] = 1;
+			punto2[0][0] = punto2[0][0] + 1;
+			matriz[punto4[0][0] + 1][punto4[0][1]] = 1;
+			punto4[0][0] = punto4[0][0] + 1;
+
+			return 1;
+
+		} else {
+			return 0; //Se perdio el juego, pues no se puede ingresar una nueva figura
+		}
+	} else {
+		if ((matriz[punto1[0][0] + 1][punto1[0][1]] == 0)
+				&& (matriz[punto2[0][0] + 1][punto2[0][1]] == 0)) { // Si la matriz en la fila siguiente, misma columna, esta desocupada.
+
+			matriz[punto1[0][0]][punto1[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto1[0][0] + 1][punto1[0][1]] = 1; // Se prende la siguiente
+			punto1[0][0] = punto1[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			matriz[punto2[0][0]][punto2[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto2[0][0] + 1][punto2[0][1]] = 1; // Se prende la siguiente
+			punto2[0][0] = punto2[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			matriz[punto3[0][0]][punto3[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto3[0][0] + 1][punto3[0][1]] = 1; // Se prende la siguiente
+			punto3[0][0] = punto3[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			matriz[punto4[0][0]][punto4[0][1]] = 0;
+			matriz[punto4[0][0] + 1][punto4[0][1]] = 1;
+			punto4[0][0] = punto4[0][0] + 1;
+
+			return 1; //SI SE PUDO BAJAR
+		} else {
+			return 0;
+		}
+	}
+	return 0;
+}
+int movimientoLGiro3(int punto1[1][2], int punto2[1][2], int punto3[1][2],
+		int punto4[1][2], int matriz[32][8]) {
+	if ((matriz[punto1[0][0] + 1][punto1[0][1]] == 0)
+			&& (matriz[punto2[0][0] + 1][punto2[0][1]] == 0)
+			&& (matriz[punto3[0][0] + 1][punto3[0][1]] == 0)) { // Si la matriz en la fila siguiente, misma columna, esta desocupada.
+		if (punto1[0][0] >= 0 && punto2[0][0] >= 0 && punto3[0][0] >= 0) {
+			// Movimiento dentro de la matriz
+			matriz[punto1[0][0]][punto1[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto1[0][0] + 1][punto1[0][1]] = 1; // Se prende la siguiente
+			punto1[0][0] = punto1[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			matriz[punto2[0][0]][punto2[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto2[0][0] + 1][punto2[0][1]] = 1; // Se prende la siguiente
+			punto2[0][0] = punto2[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			matriz[punto3[0][0]][punto3[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto3[0][0] + 1][punto3[0][1]] = 1; // Se prende la siguiente
+			punto3[0][0] = punto3[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			if (punto4[0][0] >= 0) { //Si se mueve dentro de la matriz, hara lo mismo que las bases
+				matriz[punto4[0][0]][punto4[0][1]] = 0;
+				matriz[punto4[0][0] + 1][punto4[0][1]] = 1;
+				punto4[0][0] = punto4[0][0] + 1;
+			}
+
+			if (punto4[0][0] < -1) { //Si esta por fuera, solo caera, sin iluminar
+				punto4[0][0] = punto4[0][0] + 1;
+			}
+
+			if (punto4[0][0] == -1) { //Si esta a punto de entrar en la matriz
+				matriz[punto4[0][0] + 1][punto4[0][1]] = 1;
+				punto4[0][0] = punto4[0][0] + 1;
+			}
+
+			return 1; //SI SE PUDO BAJAR
+
+		} else {
+			// Movimiento de la base por fuera de la matriz
+			matriz[punto1[0][0] + 1][punto1[0][1]] = 1; // Prendo luz siguiente, sin apagar la anterior porque no existe
+
+			matriz[punto2[0][0] + 1][punto2[0][1]] = 1; // Prendo luz siguiente, sin apagar la anterior porque no existe
+
+			matriz[punto3[0][0] + 1][punto3[0][1]] = 1; // Prendo luz siguiente, sin apagar la anterior porque no existe
+
+			punto1[0][0] = punto1[0][0] + 1; //Se suma +1 en las filas de cada punto
+			punto2[0][0] = punto2[0][0] + 1;
+			punto3[0][0] = punto3[0][0] + 1;
+			punto4[0][0] = punto4[0][0] + 1;
+
+			return 1; //SE PUDO BAJAR
+		}
+	} else {
+		return 0; // NO SE PUDO BAJAR
+	}
+}
+int movimientoCubo(int punto1[1][2], int punto2[1][2], int punto3[1][2],
+		int punto4[1][2], int matriz[32][8]) {
+	if ((matriz[punto1[0][0] + 1][punto1[0][1]] == 0)
+			&& (matriz[punto2[0][0] + 1][punto2[0][1]] == 0)) {
+		if (punto1[0][0] >= 0 && punto2[0][0] >= 0) {
+			// Movimiento dentro de la matriz
+			matriz[punto1[0][0]][punto1[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto1[0][0] + 1][punto1[0][1]] = 1; // Se prende la siguiente
+			punto1[0][0] = punto1[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			matriz[punto2[0][0]][punto2[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto2[0][0] + 1][punto2[0][1]] = 1; // Se prende la siguiente
+			punto2[0][0] = punto2[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			if (punto3[0][0] >= 0) { //Si se mueve dentro de la matriz, hara lo mismo que las bases
+				matriz[punto3[0][0]][punto3[0][1]] = 0;
+				matriz[punto3[0][0] + 1][punto3[0][1]] = 1;
+				punto3[0][0] = punto3[0][0] + 1;
+			}
+
+			if (punto4[0][0] >= 0) { //Si se mueve dentro de la matriz, hara lo mismo que las bases
+				matriz[punto4[0][0]][punto4[0][1]] = 0;
+				matriz[punto4[0][0] + 1][punto4[0][1]] = 1;
+				punto4[0][0] = punto4[0][0] + 1;
+			}
+
+			if (punto3[0][0] < -1) { //Si esta por fuera, solo caera, sin iluminar
+				punto3[0][0] = punto3[0][0] + 1;
+			}
+			if (punto4[0][0] < -1) { //Si esta por fuera, solo caera, sin iluminar
+				punto4[0][0] = punto4[0][0] + 1;
+			}
+
+			if (punto3[0][0] == -1) { //Si esta a punto de entrar en la matriz
+				matriz[punto3[0][0] + 1][punto3[0][1]] = 1;
+				punto3[0][0] = punto3[0][0] + 1;
+			}
+
+			if (punto4[0][0] == -1) { //Si esta a punto de entrar en la matriz
+				matriz[punto4[0][0] + 1][punto4[0][1]] = 1;
+				punto4[0][0] = punto4[0][0] + 1;
+			}
+
+			return 1; //SI SE PUDO BAJAR
+
+		} else {
+			// Movimiento de la base por fuera de la matriz
+			matriz[punto1[0][0] + 1][punto1[0][1]] = 1; // Prendo luz siguiente, sin apagar la anterior porque no existe
+
+			matriz[punto2[0][0] + 1][punto2[0][1]] = 1; // Prendo luz siguiente, sin apagar la anterior porque no existe
+
+			punto1[0][0] = punto1[0][0] + 1; //Se suma +1 en las filas de cada punto
+			punto2[0][0] = punto2[0][0] + 1;
+			punto3[0][0] = punto3[0][0] + 1;
+			punto4[0][0] = punto4[0][0] + 1;
+
+			return 1; //SE PUDO BAJAR
+		}
+	} else {
+		return 0; // NO SE PUDO BAJAR
+	}
+}
+int movimientoS(int punto1[1][2], int punto2[1][2], int punto3[1][2],
+		int punto4[1][2], int matriz[32][8]) {
+	if (punto1[0][0] == -1 && punto2[0][0] == -1) {	//Solo se verifica la base en el primer paso
+		if ((matriz[punto1[0][0] + 1][punto1[0][1]] == 0)
+				&& (matriz[punto2[0][0] + 1][punto2[0][1]] == 0)) {	// Si la matriz en la fila siguiente, misma columna, esta desocupada.
+			// Movimiento de la base por fuera de la matriz
+			matriz[punto1[0][0] + 1][punto1[0][1]] = 1; // Prendo luz siguiente, sin apagar la anterior porque no existe
+			matriz[punto2[0][0] + 1][punto2[0][1]] = 1;
+
+			punto1[0][0] = punto1[0][0] + 1;
+			punto2[0][0] = punto2[0][0] + 1;
+			punto3[0][0] = punto3[0][0] + 1;
+			punto4[0][0] = punto4[0][0] + 1;
+			return 1;
+		} else {
+			return 0; //Se perdio el juego, pues no se puede ingresar una nueva figura
+		}
+	}
+	if (punto1[0][0] == 0 && punto2[0][0] == 0) { //Solo se verifica la base en el primer paso
+		if ((matriz[punto1[0][0] + 1][punto1[0][1]] == 0)
+				&& (matriz[punto2[0][0] + 1][punto2[0][1]] == 0)
+				&& (matriz[punto3[0][0] + 1][punto3[0][1]] == 0)) {	// Si la matriz en la fila siguiente, misma columna, esta desocupada.
+			// Movimiento de la base por fuera de la matriz
+			matriz[punto1[0][0]][punto1[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto1[0][0] + 1][punto1[0][1]] = 1; // Se prende la siguiente
+			punto1[0][0] = punto1[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			matriz[punto2[0][0]][punto2[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto2[0][0] + 1][punto2[0][1]] = 1; // Se prende la siguiente
+			punto2[0][0] = punto2[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			matriz[punto3[0][0] + 1][punto3[0][1]] = 1;
+			punto3[0][0] = punto3[0][0] + 1;
+
+			matriz[punto4[0][0] + 1][punto4[0][1]] = 1;
+			punto4[0][0] = punto4[0][0] + 1;
+
+			return 1;
+
+		} else {
+			return 0; //Se perdio el juego, pues no se puede ingresar una nueva figura
+		}
+	} else {
+		if ((matriz[punto1[0][0] + 1][punto1[0][1]] == 0)
+				&& (matriz[punto2[0][0] + 1][punto2[0][1]] == 0)
+				&& (matriz[punto3[0][0] + 1][punto3[0][1]] == 0)) { // Si la matriz en la fila siguiente, misma columna, esta desocupada.
+
+			matriz[punto1[0][0]][punto1[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto1[0][0] + 1][punto1[0][1]] = 1; // Se prende la siguiente
+			punto1[0][0] = punto1[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			matriz[punto2[0][0]][punto2[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto2[0][0] + 1][punto2[0][1]] = 1; // Se prende la siguiente
+			punto2[0][0] = punto2[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			matriz[punto3[0][0]][punto3[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto3[0][0] + 1][punto3[0][1]] = 1; // Se prende la siguiente
+			punto3[0][0] = punto3[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			matriz[punto4[0][0]][punto4[0][1]] = 0;
+			matriz[punto4[0][0] + 1][punto4[0][1]] = 1;
+			punto4[0][0] = punto4[0][0] + 1;
+
+			return 1; //SI SE PUDO BAJAR
+		} else {
+			return 0;
+		}
+	}
+	return 0;
+}
+int movimientoSGiro1(int punto1[1][2], int punto2[1][2], int punto3[1][2],
+		int punto4[1][2], int matriz[32][8]) {
+	if (punto1[0][0] == -1) {	//Solo se verifica la base en el primer paso
+		if (matriz[punto1[0][0] + 1][punto1[0][1]] == 0) {// Si la matriz en la fila siguiente, misma columna, esta desocupada.
+			// Movimiento de la base por fuera de la matriz
+			matriz[punto1[0][0] + 1][punto1[0][1]] = 1; // Prendo luz siguiente, sin apagar la anterior porque no existe
+
+			punto1[0][0] = punto1[0][0] + 1;
+			punto2[0][0] = punto2[0][0] + 1;
+			punto3[0][0] = punto3[0][0] + 1;
+			punto4[0][0] = punto4[0][0] + 1;
+			return 1;
+		} else {
+			return 0; //Se perdio el juego, pues no se puede ingresar una nueva figura
+		}
+	}
+	if (punto1[0][0] == 0) { //Solo se verifica la base en el primer paso
+		if (matriz[punto1[0][0] + 1][punto1[0][1]] == 0
+				&& matriz[punto2[0][0] + 1][punto2[0][1]] == 0) { // Si la matriz en la fila siguiente, misma columna, esta desocupada.
+				// Movimiento de la base por fuera de la matriz
+			matriz[punto1[0][0]][punto1[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto1[0][0] + 1][punto1[0][1]] = 1; // Se prende la siguiente
+			punto1[0][0] = punto1[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			matriz[punto2[0][0] + 1][punto2[0][1]] = 1;
+			punto2[0][0] = punto2[0][0] + 1;
+
+			matriz[punto3[0][0] + 1][punto3[0][1]] = 1;
+			punto3[0][0] = punto3[0][0] + 1;
+
+			punto4[0][0] = punto4[0][0] + 1;
+
+			return 1;
+
+		} else {
+			return 0; //Se perdio el juego, pues no se puede ingresar una nueva figura
+		}
+	}
+	if (punto1[0][0] == 1) { //Solo se verifica la base en el primer paso
+		if (matriz[punto1[0][0] + 1][punto1[0][1]] == 0
+				&& matriz[punto2[0][0] + 1][punto2[0][1]] == 0) { // Si la matriz en la fila siguiente, misma columna, esta desocupada.
+				// Movimiento de la base por fuera de la matriz
+			matriz[punto1[0][0]][punto1[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto1[0][0] + 1][punto1[0][1]] = 1; // Se prende la siguiente
+			punto1[0][0] = punto1[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			matriz[punto2[0][0]][punto2[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto2[0][0] + 1][punto2[0][1]] = 1; // Se prende la siguiente
+			punto2[0][0] = punto2[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			matriz[punto3[0][0]][punto3[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto3[0][0] + 1][punto3[0][1]] = 1; // Se prende la siguiente
+			punto3[0][0] = punto3[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			matriz[punto4[0][0] + 1][punto4[0][1]] = 1;
+			punto4[0][0] = punto4[0][0] + 1;
+
+			return 1;
+
+		} else {
+			return 0; //Se perdio el juego, pues no se puede ingresar una nueva figura
+		}
+	} else {
+		if ((matriz[punto1[0][0] + 1][punto1[0][1]] == 0)
+				&& (matriz[punto2[0][0] + 1][punto2[0][1]] == 0)) { // Si la matriz en la fila siguiente, misma columna, esta desocupada.
+
+			matriz[punto1[0][0]][punto1[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto1[0][0] + 1][punto1[0][1]] = 1; // Se prende la siguiente
+			punto1[0][0] = punto1[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			matriz[punto2[0][0]][punto2[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto2[0][0] + 1][punto2[0][1]] = 1; // Se prende la siguiente
+			punto2[0][0] = punto2[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			matriz[punto3[0][0]][punto3[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto3[0][0] + 1][punto3[0][1]] = 1; // Se prende la siguiente
+			punto3[0][0] = punto3[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			matriz[punto4[0][0]][punto4[0][1]] = 0;
+			matriz[punto4[0][0] + 1][punto4[0][1]] = 1;
+			punto4[0][0] = punto4[0][0] + 1;
+
+			return 1; //SI SE PUDO BAJAR
+		} else {
+			return 0;
+		}
+	}
+	return 0;
+}
+int movimientoZ(int punto1[1][2], int punto2[1][2], int punto3[1][2],
+		int punto4[1][2], int matriz[32][8]) {
+	if (punto1[0][0] == -1 && punto2[0][0] == -1) {	//Solo se verifica la base en el primer paso
+		if ((matriz[punto1[0][0] + 1][punto1[0][1]] == 0)
+				&& (matriz[punto2[0][0] + 1][punto2[0][1]] == 0)) {	// Si la matriz en la fila siguiente, misma columna, esta desocupada.
+			// Movimiento de la base por fuera de la matriz
+			matriz[punto1[0][0] + 1][punto1[0][1]] = 1; // Prendo luz siguiente, sin apagar la anterior porque no existe
+			matriz[punto2[0][0] + 1][punto2[0][1]] = 1;
+
+			punto1[0][0] = punto1[0][0] + 1;
+			punto2[0][0] = punto2[0][0] + 1;
+			punto3[0][0] = punto3[0][0] + 1;
+			punto4[0][0] = punto4[0][0] + 1;
+			return 1;
+		} else {
+			return 0; //Se perdio el juego, pues no se puede ingresar una nueva figura
+		}
+	}
+	if (punto1[0][0] == 0 && punto2[0][0] == 0) { //Solo se verifica la base en el primer paso
+		if ((matriz[punto1[0][0] + 1][punto1[0][1]] == 0)
+				&& (matriz[punto2[0][0] + 1][punto2[0][1]] == 0)
+				&& (matriz[punto3[0][0] + 1][punto3[0][1]] == 0)) {	// Si la matriz en la fila siguiente, misma columna, esta desocupada.
+			// Movimiento de la base por fuera de la matriz
+			matriz[punto1[0][0]][punto1[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto1[0][0] + 1][punto1[0][1]] = 1; // Se prende la siguiente
+			punto1[0][0] = punto1[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			matriz[punto2[0][0]][punto2[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto2[0][0] + 1][punto2[0][1]] = 1; // Se prende la siguiente
+			punto2[0][0] = punto2[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			matriz[punto3[0][0] + 1][punto3[0][1]] = 1;
+			punto3[0][0] = punto3[0][0] + 1;
+
+			matriz[punto4[0][0] + 1][punto4[0][1]] = 1;
+			punto4[0][0] = punto4[0][0] + 1;
+
+			return 1;
+
+		} else {
+			return 0; //Se perdio el juego, pues no se puede ingresar una nueva figura
+		}
+	} else {
+		if ((matriz[punto1[0][0] + 1][punto1[0][1]] == 0)
+				&& (matriz[punto2[0][0] + 1][punto2[0][1]] == 0)
+				&& (matriz[punto3[0][0] + 1][punto3[0][1]] == 0)) { // Si la matriz en la fila siguiente, misma columna, esta desocupada.
+
+			matriz[punto1[0][0]][punto1[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto1[0][0] + 1][punto1[0][1]] = 1; // Se prende la siguiente
+			punto1[0][0] = punto1[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			matriz[punto2[0][0]][punto2[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto2[0][0] + 1][punto2[0][1]] = 1; // Se prende la siguiente
+			punto2[0][0] = punto2[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			matriz[punto3[0][0]][punto3[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto3[0][0] + 1][punto3[0][1]] = 1; // Se prende la siguiente
+			punto3[0][0] = punto3[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			matriz[punto4[0][0]][punto4[0][1]] = 0;
+			matriz[punto4[0][0] + 1][punto4[0][1]] = 1;
+			punto4[0][0] = punto4[0][0] + 1;
+
+			return 1; //SI SE PUDO BAJAR
+		} else {
+			return 0;
+		}
+	}
+	return 0;
+}
+int movimientoZGiro1(int punto1[1][2], int punto2[1][2], int punto3[1][2],
+		int punto4[1][2], int matriz[32][8]) {
+	if (punto1[0][0] == -1) {	//Solo se verifica la base en el primer paso
+		if (matriz[punto1[0][0] + 1][punto1[0][1]] == 0) {// Si la matriz en la fila siguiente, misma columna, esta desocupada.
+			// Movimiento de la base por fuera de la matriz
+			matriz[punto1[0][0] + 1][punto1[0][1]] = 1; // Prendo luz siguiente, sin apagar la anterior porque no existe
+
+			punto1[0][0] = punto1[0][0] + 1;
+			punto2[0][0] = punto2[0][0] + 1;
+			punto3[0][0] = punto3[0][0] + 1;
+			punto4[0][0] = punto4[0][0] + 1;
+			return 1;
+		} else {
+			return 0; //Se perdio el juego, pues no se puede ingresar una nueva figura
+		}
+	}
+	if (punto1[0][0] == 0) { //Solo se verifica la base en el primer paso
+		if (matriz[punto1[0][0] + 1][punto1[0][1]] == 0
+				&& matriz[punto2[0][0] + 1][punto2[0][1]] == 0) { // Si la matriz en la fila siguiente, misma columna, esta desocupada.
+				// Movimiento de la base por fuera de la matriz
+			matriz[punto1[0][0]][punto1[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto1[0][0] + 1][punto1[0][1]] = 1; // Se prende la siguiente
+			punto1[0][0] = punto1[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			matriz[punto2[0][0] + 1][punto2[0][1]] = 1;
+			punto2[0][0] = punto2[0][0] + 1;
+
+			matriz[punto3[0][0] + 1][punto3[0][1]] = 1;
+			punto3[0][0] = punto3[0][0] + 1;
+
+			punto4[0][0] = punto4[0][0] + 1;
+
+			return 1;
+
+		} else {
+			return 0; //Se perdio el juego, pues no se puede ingresar una nueva figura
+		}
+	}
+	if (punto1[0][0] == 1) { //Solo se verifica la base en el primer paso
+		if (matriz[punto1[0][0] + 1][punto1[0][1]] == 0
+				&& matriz[punto2[0][0] + 1][punto2[0][1]] == 0) { // Si la matriz en la fila siguiente, misma columna, esta desocupada.
+				// Movimiento de la base por fuera de la matriz
+			matriz[punto1[0][0]][punto1[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto1[0][0] + 1][punto1[0][1]] = 1; // Se prende la siguiente
+			punto1[0][0] = punto1[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			matriz[punto2[0][0]][punto2[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto2[0][0] + 1][punto2[0][1]] = 1; // Se prende la siguiente
+			punto2[0][0] = punto2[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			matriz[punto3[0][0]][punto3[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto3[0][0] + 1][punto3[0][1]] = 1; // Se prende la siguiente
+			punto3[0][0] = punto3[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			matriz[punto4[0][0] + 1][punto4[0][1]] = 1;
+			punto4[0][0] = punto4[0][0] + 1;
+
+			return 1;
+
+		} else {
+			return 0; //Se perdio el juego, pues no se puede ingresar una nueva figura
+		}
+	} else {
+		if ((matriz[punto1[0][0] + 1][punto1[0][1]] == 0)
+				&& (matriz[punto2[0][0] + 1][punto2[0][1]] == 0)) { // Si la matriz en la fila siguiente, misma columna, esta desocupada.
+
+			matriz[punto1[0][0]][punto1[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto1[0][0] + 1][punto1[0][1]] = 1; // Se prende la siguiente
+			punto1[0][0] = punto1[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			matriz[punto2[0][0]][punto2[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto2[0][0] + 1][punto2[0][1]] = 1; // Se prende la siguiente
+			punto2[0][0] = punto2[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			matriz[punto3[0][0]][punto3[0][1]] = 0;	// Se apaga la luz donde estoy
+			matriz[punto3[0][0] + 1][punto3[0][1]] = 1; // Se prende la siguiente
+			punto3[0][0] = punto3[0][0] + 1; // Le sumo 1 a la fila del punto
+
+			matriz[punto4[0][0]][punto4[0][1]] = 0;
+			matriz[punto4[0][0] + 1][punto4[0][1]] = 1;
+			punto4[0][0] = punto4[0][0] + 1;
+
+			return 1; //SI SE PUDO BAJAR
+		} else {
+			return 0;
+		}
+	}
+	return 0;
+}
 void mover(int punto[1][2], int matriz[32][8]) {
 	if (matriz[punto[0][0] + 1][punto[0][1]] == 0) {
 		if (punto[0][0] >= 0) {
@@ -1033,35 +2124,61 @@ void mover(int punto[1][2], int matriz[32][8]) {
 
 }
 void traducir(int matriz[32][8]) {
-		for (int i = 0; i < 8; i++) {
-			int aux = 0;
+	int matriz1[8][8] = { 0 };
+	int matriz2[8][8] = { 0 };
+	int matriz3[8][8] = { 0 };
+	int matriz4[8][8] = { 0 };
+	for (int i = 0; i < 32; i++) {
+		if (i >= 0 && i < 8) {
 			for (int j = 0; j < 8; j++) {
-				aux |= (matriz[j][i] << j);
+				matriz1[i][j] = matriz[i][j];
 			}
-			MatrixLedMod1(i + 1, aux);
 		}
-		for (int k = 7; k < 16; k++) {
-			int aux =0;
+		if (i >= 8 && i < 16) {
 			for (int j = 0; j < 8; j++) {
-				aux |= (matriz[j][k] << j);
+				matriz2[i - 8][j] = matriz[i][j];
 			}
-			MatrixLedMod2(k + 1, aux);
 		}
-		for (int l = 16; l < 24; l++) {
-			int aux = 0;
+		if (i >= 16 && i < 24) {
 			for (int j = 0; j < 8; j++) {
-				aux |= (matriz[j][l] << j);
+				matriz3[i - 16][j] = matriz[i][j];
 			}
-			MatrixLedMod3(l + 1, aux);
 		}
-		for (int m = 24; m < 32; m++) {
-			int aux = 0;
+		if (i >= 24 && i < 32) {
 			for (int j = 0; j < 8; j++) {
-				aux |= (matriz[j][m] << j);
+				matriz4[i - 24][j] = matriz[i][j];
 			}
-			MatrixLedMod4(m + 1, aux);
 		}
+	}
 
+	for (int i = 0; i < 8; i++) {
+		uint8_t aux = 0;
+		for (int j = 0; j < 8; j++) {
+			aux |= (matriz1[j][i] << j);
+		}
+		MatrixLedMod1(i + 1, aux);
+	}
+	for (int i = 0; i < 8; i++) {
+		uint8_t aux = 0;
+		for (int j = 0; j < 8; j++) {
+			aux |= (matriz2[j][i] << j);
+		}
+		MatrixLedMod2(i + 1, aux);
+	}
+	for (int i = 0; i < 8; i++) {
+		uint8_t aux = 0;
+		for (int j = 0; j < 8; j++) {
+			aux |= (matriz3[j][i] << j);
+		}
+		MatrixLedMod3(i + 1, aux);
+	}
+	for (int i = 0; i < 8; i++) {
+		uint8_t aux = 0;
+		for (int j = 0; j < 8; j++) {
+			aux |= (matriz4[j][i] << j);
+		}
+		MatrixLedMod4(i + 1, aux);
+	}
 }
 void adcComplete_Callback(void) {
 	adcData = getADC();
@@ -1084,4 +2201,8 @@ void BasicTimer5_Callback(void) {
 	GPIOxTooglePin(&handlerLedOK);
 
 }
-
+void usart2Rx_Callback(void) {
+	//Leemos el valor del registro DR, donde se almacena el dato que llega.
+	//Esto además debe bajar la bandera de la interrupción
+	rxData = getRXData();
+}
