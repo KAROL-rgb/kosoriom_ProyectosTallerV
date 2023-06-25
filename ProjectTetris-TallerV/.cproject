@@ -85,8 +85,8 @@
 							<tool id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.objcopy.symbolsrec.1338787375" name="MCU Output Converter Motorola S-rec with symbols" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.objcopy.symbolsrec"/>
 						</toolChain>
 					</folderInfo>
-					<fileInfo id="com.st.stm32cube.ide.mcu.gnu.managedbuild.config.exe.debug.1025732384.1916710908" name="PruebaJoystick.c" rcbsApplicability="disable" resourcePath="App/Src/PruebaJoystick.c" toolsToInvoke="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.768044993.971894852">
-						<tool id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.768044993.971894852" name="MCU GCC Compiler" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.768044993"/>
+					<fileInfo id="com.st.stm32cube.ide.mcu.gnu.managedbuild.config.exe.debug.1025732384.472406876" name="main.c" rcbsApplicability="disable" resourcePath="App/Src/main.c" toolsToInvoke="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.768044993.1872623199">
+						<tool id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.768044993.1872623199" name="MCU GCC Compiler" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.768044993"/>
 					</fileInfo>
 					<sourceEntries>
 						<entry excluding="Src/PruebaJoystick.c|Src/SineAbs_Main.c|Src/PruebaAccel.c|Src/comandos2.c|Src/BasicProjectMain.c|Src/PLL_Main.c|Src/PruebaPLL.c|Src/BasicPLLMain.c|Src/SysTick_Main.c|Src/TestPWM_Main.c|Src/TestingFpu_Main.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="App"/>

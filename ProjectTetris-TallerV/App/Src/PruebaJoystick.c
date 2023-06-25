@@ -473,7 +473,7 @@ int main(void) {
 
 	}
 
-//
+//-1
 //	while(1){
 //		if(counterButton==1){                    // Interrupción externa del exti del botón SW
 //			estado++;
