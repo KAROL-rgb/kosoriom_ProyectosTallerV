@@ -69,6 +69,7 @@ uint16_t randomSeed;
 uint16_t randomNumber;
 
 uint8_t estado;
+uint8_t puntos;
 uint8_t giro;
 uint32_t counterButton = 0;
 
@@ -77,10 +78,10 @@ uint8_t save = 0;
 uint8_t flag = 0;
 uint8_t rxData = 0; // Para valores random
 char bufferData[128] = { 0 };
-
+void tetris(int matriz[32][8], uint8_t fila);
 int test = 0;
 /* Definición de las funciones del programa a utilizar */
-
+void inicio(int matriz[32][8]);
 void initSystem(void) {
 //	config_SysTick_ms(200);
 	handlerLedOK.pGPIOx = GPIOA;
@@ -455,8 +456,19 @@ void clean(void) {
 
 int main(void) {
 
-	int matriz[32][8] = { 0 };
 
+	initSystem();
+	config_SysTick_ms(0);
+	SPI_Configuration();
+	Serial_Configuration();
+	clean();
+	adcComplete_Callback();
+	srand(randomSeed);
+
+	int matriz[32][8] = { 0 };
+	inicio(matriz);
+	puntos = 0;
+	//delay
 	int punto1[1][2];
 	int punto2[1][2];
 	int punto3[1][2];
@@ -467,21 +479,33 @@ int main(void) {
 	matriz[31][3] = 1;
 	matriz[31][4] = 1;
 
-	initSystem();
-	config_SysTick_ms(0);
-	SPI_Configuration();
-	Serial_Configuration();
-	clean();
-	adcComplete_Callback();
-	srand(randomSeed);
+//	traducir(matriz);
+
 
 	while (1) {
-		//AQUI ESTARA LA VERIFICACION SI SE QUITA TODA UNA FILA PORQUE ESTA COMPLETA
+		//Tetris
+
+		for (int i = 31; i >= 0; i--) {
+			if (matriz[i][0] == 1 && matriz[i][1] == 1 && matriz[i][2] == 1
+					&& matriz[i][3] == 1 && matriz[i][4] == 1
+					&& matriz[i][5] == 1 && matriz[i][6] == 1
+					&& matriz[i][7] == 1) {
+				tetris(matriz, i);
+				puntos += 1;
+				traducir(matriz);
+				delay_ms(500);
+			}
+		}
+
+		//Caida de piezas, giros y movimientos laterales
 		if (rxData != '\0') {
 			writeChar(&handlerCommTerminal, rxData);
 			switch (rxData) {
 			case 'k': {
-				writeMsg(&handlerCommTerminal, "dummy message\n");
+
+				sprintf(bufferData, "puntos = %u \n", puntos);
+				writeMsg(&handlerCommTerminal, "score \n");
+
 				break;
 			}
 			case 'r': {
@@ -2157,7 +2181,7 @@ int main(void) {
 			}
 
 		}
-		//AQUI ESTARA LA VERIFICACION SI SE PIERDE EL JUEGO
+		//Fin del juego
 		if (matriz[0][0] || matriz[0][1] || matriz[0][2] || matriz[0][3]
 				|| matriz[0][4] || matriz[0][5] || matriz[0][6]
 				|| matriz[0][7]) {
@@ -2169,6 +2193,120 @@ int main(void) {
 	return 0;
 }
 
+void tetris(int matriz[32][8], uint8_t fila) {
+	for (int i = 0; i < 8; i++) {
+		matriz[fila][i] = 0;
+	}
+	traducir(matriz);
+	delay_ms(1000);
+	for (int i = 32; i > 0; i--) {
+		if (i <= fila) {
+			for (int j = 0; j < 8; j++) {
+				matriz[i][j] = matriz[i - 1][j];
+			}
+		}
+
+	}
+}
+void inicio(int matriz[32][8]){
+	matriz[1][6] = 1;
+	matriz[2][6] = 1;
+	matriz[3][6] = 1;
+	matriz[4][6] = 1;
+	matriz[5][6] = 1;
+
+	matriz[3][1] = 1;
+	matriz[3][2] = 1;
+	matriz[3][3] = 1;
+	matriz[3][4] = 1;
+	matriz[3][5] = 1;
+	matriz[2][6] = 1;
+
+	matriz[7][1] = 1;
+	matriz[7][2] = 1;
+	matriz[7][3] = 1;
+	matriz[7][4] = 1;
+	matriz[7][5] = 1;
+	matriz[7][6] = 1;
+
+	matriz[8][1] = 1;
+	matriz[9][1] = 1;
+	matriz[10][1] = 1;
+	matriz[8][4] = 1;
+	matriz[9][4] = 1;
+	matriz[10][4] = 1;
+	matriz[8][6] = 1;
+	matriz[9][6] = 1;
+	matriz[10][6] = 1;
+
+	matriz[12][6] = 1;
+	matriz[13][6] = 1;
+	matriz[14][6] = 1;
+	matriz[15][6] = 1;
+	matriz[16][6] = 1;
+
+	matriz[14][1] = 1;
+	matriz[14][2] = 1;
+	matriz[14][3] = 1;
+	matriz[14][4] = 1;
+	matriz[14][5] = 1;
+
+	matriz[18][1] = 1;
+	matriz[18][2] = 1;
+	matriz[18][3] = 1;
+	matriz[18][4] = 1;
+	matriz[18][5] = 1;
+	matriz[18][6] = 1;
+
+	matriz[19][6] = 1;
+	matriz[20][6] = 1;
+	matriz[21][5] = 1;
+	matriz[21][4] = 1;
+	matriz[20][3] = 1;
+	matriz[19][3] = 1;
+	matriz[20][2] = 1;
+	matriz[21][1] = 1;
+
+	matriz[23][6] = 1;
+	matriz[23][1] = 1;
+	matriz[25][6] = 1;
+	matriz[25][1] = 1;
+
+	matriz[24][1] = 1;
+	matriz[24][2] = 1;
+	matriz[24][3] = 1;
+	matriz[24][4] = 1;
+	matriz[24][5] = 1;
+	matriz[24][6] = 1;
+
+	matriz[27][1] = 1;
+	matriz[27][3] = 1;
+	matriz[27][4] = 1;
+	matriz[27][5] = 1;
+	matriz[27][6] = 1;
+
+	matriz[28][1] = 1;
+	matriz[28][3] = 1;
+	matriz[28][6] = 1;
+
+	matriz[29][1] = 1;
+	matriz[29][3] = 1;
+	matriz[29][6] = 1;
+
+	matriz[30][1] = 1;
+	matriz[28][1] = 1;
+	matriz[30][2] = 1;
+	matriz[30][3] = 1;
+	matriz[30][6] = 1;
+
+	traducir(matriz);
+	delay_ms(3000);
+	for(int i=0; i<32;i++){
+		for(int j=0;j<8;j++){
+			matriz[i][j] = 0;
+		}
+	}
+}
 void traducir(int matriz[32][8]) {
 	int matriz1[8][8] = { 0 };
 	int matriz2[8][8] = { 0 };
