@@ -84,4 +84,6 @@ int movimientoZ(int punto1[1][2], int punto2[1][2], int punto3[1][2],
 int movimientoZGiro1(int punto1[1][2], int punto2[1][2], int punto3[1][2],
 		int punto4[1][2], int matriz[32][8]);
 
+void end(int matriz[32][8]);
+
 #endif /* TETRIS_H_ */

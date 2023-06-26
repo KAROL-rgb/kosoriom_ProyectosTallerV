@@ -1325,5 +1325,96 @@ int movimientoZGiro1(int punto1[1][2], int punto2[1][2], int punto3[1][2],
 	}
 	return 0;
 }
+void end(int matriz[32][8]){
+	for(int i=0;i<32;i++){
+		for(int j = 0; j<8;j++){
+			matriz[i][j]=0;
+		}
+	}
+	//END
+	//	E
+	matriz[1][1]=1;
+	matriz[1][2]=1;
+	matriz[1][3]=1;
+	matriz[1][4]=1;
+	matriz[1][5]=1;
+	matriz[1][6]=1;
 
+	matriz[2][1]=1;
+	matriz[3][1]=1;
+
+	matriz[4][1]=1;
+	matriz[4][2]=1;
+	matriz[4][3]=1;
+	matriz[4][4]=1;
+	matriz[4][5]=1;
+	matriz[4][6]=1;
+
+	matriz[5][1]=1;
+	matriz[6][1]=1;
+	matriz[6][2]=1;
+	matriz[6][3]=1;
+	matriz[6][4]=1;
+	matriz[6][5]=1;
+	matriz[6][6]=1;
+
+	// N
+	matriz[9][1]=1;
+	matriz[10][2]=1;
+	matriz[11][3]=1;
+	matriz[12][4]=1;
+	matriz[13][5]=1;
+	matriz[14][6]=1;
+
+	matriz[10][2]=1;
+	matriz[11][3]=1;
+	matriz[12][4]=1;
+	matriz[13][5]=1;
+	matriz[14][6]=1;
+
+	matriz[10][1]=1;
+	matriz[11][1]=1;
+	matriz[12][1]=1;
+	matriz[13][1]=1;
+	matriz[14][1]=1;
+
+	matriz[9][6]=1;
+	matriz[10][6]=1;
+	matriz[11][6]=1;
+	matriz[12][6]=1;
+	matriz[13][6]=1;
+	matriz[14][6]=1;
+
+	// 	D
+	matriz[17][1]=1;
+	matriz[17][2]=1;
+	matriz[17][4]=1;
+	matriz[18][1]=1;
+	matriz[19][1]=1;
+	matriz[20][1]=1;
+	matriz[21][1]=1;
+	matriz[22][1]=1;
+	matriz[17][3]=1;
+	matriz[18][5]=1;
+
+	matriz[22][2]=1;
+	matriz[22][3]=1;
+	matriz[22][4]=1;
+	matriz[21][5]=1;
+	matriz[20][6]=1;
+	matriz[19][6]=1;
+
+	// ?
+	matriz[26][1]=1;
+	matriz[25][2]=1;
+	matriz[25][3]=1;
+	matriz[25][4]=1;
+	matriz[25][5]=1;
+	matriz[26][6]=1;
+	matriz[27][6]=1;
+	matriz[28][5]=1;
+	matriz[29][4]=1;
+	matriz[31][4]=1;
+
+}
 
