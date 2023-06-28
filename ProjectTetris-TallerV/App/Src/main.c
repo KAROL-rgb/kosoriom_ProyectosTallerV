@@ -469,6 +469,7 @@ int main(void) {
 	inicio(matriz);
 	puntos = 0;
 	//delay
+	int delay = 500-(10 * puntos);
 	int punto1[1][2];
 	int punto2[1][2];
 	int punto3[1][2];
@@ -590,7 +591,7 @@ int main(void) {
 						int test = movimientoT(punto1, punto2, punto3, punto4,
 								matriz);
 						if (test == 1) {
-							delay_ms(200);
+							delay_ms(delay);
 							traducir(matriz);
 						} else {
 							break;
@@ -662,7 +663,7 @@ int main(void) {
 							int test = movimientoTGiro1(punto1, punto2, punto3,
 									punto4, matriz);
 							if (test == 1) {
-								delay_ms(200);
+								delay_ms(delay);
 								traducir(matriz);
 							} else {
 								break;
@@ -735,7 +736,7 @@ int main(void) {
 							int test = movimientoTGiro2(punto1, punto2, punto3,
 									punto4, matriz);
 							if (test == 1) {
-								delay_ms(200);
+								delay_ms(delay);
 								traducir(matriz);
 							} else {
 								break;
@@ -811,7 +812,7 @@ int main(void) {
 							int test = movimientoTGiro3(punto1, punto2, punto3,
 									punto4, matriz);
 							if (test == 1) {
-								delay_ms(200);
+								delay_ms(delay);
 								traducir(matriz);
 							} else {
 								break;
@@ -829,7 +830,7 @@ int main(void) {
 						punto4[0][0] = punto4[0][0] + 1;
 						matriz[punto2[0][0]][punto2[0][1]] = 1;
 						traducir(matriz);
-						delay_ms(200);
+						delay_ms(delay);
 						giro = 0;
 					}
 					if (giro == 0) {
@@ -914,7 +915,7 @@ int main(void) {
 						int test = movimientoPalito(punto1, punto2, punto3,
 								punto4, matriz);
 						if (test == 1) {
-							delay_ms(200);
+							delay_ms(delay);
 							traducir(matriz);
 						} else {
 							break;
@@ -988,7 +989,7 @@ int main(void) {
 							int test = movimientoPalitoGiro(punto1, punto2,
 									punto3, punto4, matriz);
 							if (test == 1) {
-								delay_ms(500);
+								delay_ms(delay);
 								traducir(matriz);
 							} else {
 								break;
@@ -1099,7 +1100,7 @@ int main(void) {
 						int test = movimientoLInvertida(punto1, punto2, punto3,
 								punto4, matriz);
 						if (test == 1) {
-							delay_ms(200);
+							delay_ms(delay);
 							traducir(matriz);
 						} else {
 							break;
@@ -1181,7 +1182,7 @@ int main(void) {
 							int test = movimientoLInvertidaGiro1(punto1, punto2,
 									punto3, punto4, matriz);
 							if (test == 1) {
-								delay_ms(200);
+								delay_ms(delay);
 								traducir(matriz);
 							} else {
 								break;
@@ -1268,7 +1269,7 @@ int main(void) {
 							int test = movimientoLInvertidaGiro2(punto1, punto2,
 									punto3, punto4, matriz);
 							if (test == 1) {
-								delay_ms(200);
+								delay_ms(delay);
 								traducir(matriz);
 							} else {
 								break;
@@ -1350,7 +1351,7 @@ int main(void) {
 							int test = movimientoLInvertidaGiro3(punto1, punto2,
 									punto3, punto4, matriz);
 							if (test == 1) {
-								delay_ms(200);
+								delay_ms(delay);
 								traducir(matriz);
 							} else {
 								break;
@@ -1462,7 +1463,7 @@ int main(void) {
 						int test = movimientoL(punto1, punto2, punto3, punto4,
 								matriz);
 						if (test == 1) {
-							delay_ms(200);
+							delay_ms(delay);
 							traducir(matriz);
 						} else {
 							break;
@@ -1542,7 +1543,7 @@ int main(void) {
 							int test = movimientoLGiro1(punto1, punto2, punto3,
 									punto4, matriz);
 							if (test == 1) {
-								delay_ms(200);
+								delay_ms(delay);
 								traducir(matriz);
 							} else {
 								break;
@@ -1627,7 +1628,7 @@ int main(void) {
 							int test = movimientoLGiro2(punto1, punto2, punto3,
 									punto4, matriz);
 							if (test == 1) {
-								delay_ms(200);
+								delay_ms(delay);
 								traducir(matriz);
 							} else {
 								break;
@@ -1711,7 +1712,7 @@ int main(void) {
 							int test = movimientoLGiro3(punto1, punto2, punto3,
 									punto4, matriz);
 							if (test == 1) {
-								delay_ms(200);
+								delay_ms(delay);
 								traducir(matriz);
 							} else {
 								break;
@@ -1812,7 +1813,7 @@ int main(void) {
 					int test = movimientoCubo(punto1, punto2, punto3, punto4,
 							matriz);
 					if (test == 1) {
-						delay_ms(200);
+						delay_ms(delay);
 						traducir(matriz);
 					} else {
 						break;
@@ -1889,7 +1890,7 @@ int main(void) {
 						int test = movimientoS(punto1, punto2, punto3, punto4,
 								matriz);
 						if (test == 1) {
-							delay_ms(200);
+							delay_ms(delay);
 							traducir(matriz);
 						} else {
 							break;
@@ -1960,7 +1961,7 @@ int main(void) {
 							int test = movimientoSGiro1(punto1, punto2, punto3,
 									punto4, matriz);
 							if (test == 1) {
-								delay_ms(500);
+								delay_ms(delay);
 								traducir(matriz);
 							} else {
 								break;
@@ -2069,7 +2070,7 @@ int main(void) {
 						int test = movimientoZ(punto1, punto2, punto3, punto4,
 								matriz);
 						if (test == 1) {
-							delay_ms(200);
+							delay_ms(delay);
 							traducir(matriz);
 						} else {
 							break;
@@ -2142,7 +2143,7 @@ int main(void) {
 							int test = movimientoSGiro1(punto1, punto2, punto3,
 									punto4, matriz);
 							if (test == 1) {
-								delay_ms(500);
+								delay_ms(delay);
 								traducir(matriz);
 							} else {
 								break;

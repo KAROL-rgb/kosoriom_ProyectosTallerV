@@ -54,6 +54,8 @@ USART_Handler_t handlerCommTerminal = { 0 };
 PWM_Handler_t handlerPWM = { 0 };
 GPIO_Handler_t handlerLedOK = { 0 };
 GPIO_Handler_t hnadlerPinPWM = { 0 };
+GPIO_Handler_t handlerSW = { 0 };
+EXTI_Config_t extiButton = { 0 };
 
 uint32_t getCounterDelay(void);
 BasicTimer_Handler_t handlerDelay = { 0 };
@@ -66,15 +68,21 @@ uint8_t *ptr = &myVariable;
 uint16_t randomSeed;
 uint16_t randomNumber;
 
+uint8_t estado;
+uint8_t puntos;
+uint8_t giro;
+uint32_t counterButton = 0;
+
 uint8_t col = 0;
 uint8_t save = 0;
 uint8_t flag = 0;
 uint8_t rxData = 0; // Para valores random
 char bufferData[128] = { 0 };
-
+void tetris(int matriz[32][8], uint8_t fila);
+void score(uint8_t puntos);
 int test = 0;
 /* Definición de las funciones del programa a utilizar */
-
+void inicio(int matriz[32][8]);
 void initSystem(void) {
 //	config_SysTick_ms(200);
 	handlerLedOK.pGPIOx = GPIOA;
@@ -125,6 +133,18 @@ void initSystem(void) {
 	hnadlerPinPWM.GPIO_PinConfig.GPIO_PinAltFunMode = AF1;
 
 	GPIO_Config(&hnadlerPinPWM);
+
+	/* Configuración del botón, Pin PA9 (SW) */
+	handlerSW.pGPIOx = GPIOA;
+	handlerSW.GPIO_PinConfig.GPIO_PinNumber = PIN_9;
+	handlerSW.GPIO_PinConfig.GPIO_PinMode = GPIO_MODE_IN;
+	handlerSW.GPIO_PinConfig.GPIO_PinPuPdControl = GPIO_PUPDR_NOTHING;
+	GPIO_Config(&handlerSW);
+
+	/* Se carga la configuración del EXTI del botón */
+	extiButton.pGPIOHandler = &handlerSW;
+	extiButton.edgeType = EXTERNAL_INTERRUPT_RISING_EDGE;
+	extInt_Config(&extiButton);
 
 	handlerPWM.ptrTIMx = TIM2;
 	handlerPWM.config.channel = PWM_CHANNEL_3;
@@ -376,12 +396,6 @@ uint8_t MatrixLedMod4(uint8_t digit, uint8_t seg) {
 	return seg;
 }
 
-//void delay()
-//{
-//  unsigned int i;
-//  for(i=0; i<320000; i++);
-//}
-
 void timerDelay_Configuration(void) {
 
 	/*
@@ -440,355 +454,2194 @@ void clean(void) {
 	MatrixLedMod4(0x08, 0b00000000);
 
 }
-void clearMatrix() {
-	// Apaga todos los LEDs de la matriz
-	for (int i = 0; i < 8; i++) {
-		MatrixLedMod1(0x02, 0x00);
-		MatrixLedMod2(0x02, 0x00);
-		MatrixLedMod3(0x02, 0x00);
-		MatrixLedMod4(0x02, 0x00);
-		delay_ms(100);
-	}
-}
 
 int main(void) {
 
-	int matriz[32][8] = { 0 };
-
-	int punto1[1][2];
-	int punto2[1][2];
-	int punto3[1][2];
-	int punto4[1][2];
-
-	matriz[30][3] = 1;
-	matriz[30][4] = 1;
-	matriz[31][3] = 1;
-	matriz[31][4] = 1;
-//	matriz[4][3] = 1;
 
 	initSystem();
 	config_SysTick_ms(0);
 	SPI_Configuration();
 	Serial_Configuration();
 	clean();
-	clearMatrix();
 	adcComplete_Callback();
-	//	srand(joystick[1]);
 	srand(randomSeed);
-
-	// T
-//	punto1[0][0] = -1;
-//	punto1[0][1] = 3;
-//	punto2[0][0] = -2;
-//	punto2[0][1] = 2;
-//	punto3[0][0] = -2;
-//	punto3[0][1] = 4;
-//	punto4[0][0] = -2;
-//	punto4[0][1] = 3;
-//
-	// TGiro1
-//	punto1[0][0] = -1;
-//	punto1[0][1] = 4;
-//	punto2[0][0] = -2;
-//	punto2[0][1] = 3;
-//	punto3[0][0] = -2;
-//	punto3[0][1] = 4;
-//	punto4[0][0] = -3;
-//	punto4[0][1] = 4;
-
-	// TGiro3
-//	punto1[0][0] = -1;
-//	punto1[0][1] = 3;
-//	punto2[0][0] = -2;
-//	punto2[0][1] = 4;
-//	punto3[0][0] = -2;
-//	punto3[0][1] = 3;
-//	punto4[0][0] = -3;
-//	punto4[0][1] = 3;
-
-	// LInvGiro2
-//	punto1[0][0] = -1;
-//	punto1[0][1] = 3;
-//	punto2[0][0] = -3;
-//	punto2[0][1] = 4;
-//	punto3[0][0] = -2;
-//	punto3[0][1] = 3;
-//	punto4[0][0] = -3;
-//	punto4[0][1] = 3;
-
-	// LInvGiro3
-//	punto1[0][0] = -1;
-//	punto1[0][1] = 2;
-//	punto2[0][0] = -2;
-//	punto2[0][1] = 3;
-//	punto3[0][0] = -2;
-//	punto3[0][1] = 4;
-//	punto4[0][0] = -2;
-//	punto4[0][1] = 2;
-
-	// SGiro1
-//	punto1[0][0] = -1;
-//	punto1[0][1] = 4;
-//	punto2[0][0] = -2;
-//	punto2[0][1] = 3;
-//	punto3[0][0] = -2;
-//	punto3[0][1] = 4;
-//	punto4[0][0] = -3;
-//	punto4[0][1] = 3;
-
-	// Palito giro
-	punto1[0][0] = 2;
-	punto1[0][1] = 3;
-	punto2[0][0] = 2;
-	punto2[0][1] = 4;
-	punto3[0][0] = 2;
-	punto3[0][1] = 5;
-	punto4[0][0] = 2;
-	punto4[0][1] = 6;
-
-//	 L invertida giro 1
-//	punto1[0][0] = -1;
-//	punto1[0][1] = 3;
-//	punto2[0][0] = -1;
-//	punto2[0][1] = 4;
-//	punto3[0][0] = -1;
-//	punto3[0][1] = 5;
-//	punto4[0][0] = -3;
-//	punto4[0][1] = 3;
-
+// Se define la matriz de juego
+	int matriz[32][8] = { 0 };
+	inicio(matriz);
+	puntos = 0; //Score
+// Se definen los 4 puntos que componen cada figura
+	int punto1[1][2];
+	int punto2[1][2];
+	int punto3[1][2];
+	int punto4[1][2];
+// While del juego
 	while (1) {
+		//delay
+		int delay = 500-(10 * puntos);
+		//Tetris
+		for (int i = 31; i >= 0; i--) {
+			if (matriz[i][0] == 1 && matriz[i][1] == 1 && matriz[i][2] == 1
+					&& matriz[i][3] == 1 && matriz[i][4] == 1
+					&& matriz[i][5] == 1 && matriz[i][6] == 1
+					&& matriz[i][7] == 1) {
+				tetris(matriz, i);
+				puntos += 1;
+				//Mostrar puntaje
+				clean();
+				score(puntos);
+				clean();
+				//Vuelve a mostrarse la matriz de juego
+				traducir(matriz);
+				delay_ms(500);
+			}
+		}
 
-		matriz[punto1[0][0]][punto1[0][1]] = 1;
-		matriz[punto2[0][0]][punto2[0][1]] = 1;
-		matriz[punto3[0][0]][punto3[0][1]] = 1;
-		matriz[punto4[0][0]][punto4[0][1]] = 1;
-		traducir(matriz);
-			/* Movimiento joystick hacia el lado izquiero de la matriz */
-			if (joystick[1] <100 && punto1[0][1] > 0) {
-				if (matriz[punto1[0][0]][punto1[0][1] - 1] == 0) {
-					matriz[punto1[0][0]][punto1[0][1]] = 0;
-					matriz[punto2[0][0]][punto2[0][1]] = 0;
-					matriz[punto3[0][0]][punto3[0][1]] = 0;
-					matriz[punto4[0][0]][punto4[0][1]] = 0;
+		//Caida de piezas, giros y movimientos laterales
+		if (rxData != '\0') {
+			writeChar(&handlerCommTerminal, rxData);
+			switch (rxData) {
+			case 'k': {
 
-					punto1[0][1] = punto1[0][1] - 1;
-					punto2[0][1] = punto2[0][1] - 1;
-					punto3[0][1] = punto3[0][1] - 1;
-					punto4[0][1] = punto4[0][1] - 1;
+				sprintf(bufferData, "puntos = %u \n", puntos);
+				writeMsg(&handlerCommTerminal, bufferData);
 
-					matriz[punto1[0][0]][punto1[0][1]] = 1;
-					matriz[punto2[0][0]][punto2[0][1]] = 1;
-					matriz[punto3[0][0]][punto3[0][1]] = 1;
-					matriz[punto4[0][0]][punto4[0][1]] = 1;
+				break;
+			}
+			case 'r': {
+				randomSeed = 0x1F & (TIM3->CNT);
+				srand(randomSeed);
+				(void) rand();
+				randomNumber = rand();
+				sprintf(bufferData, "randomNumber = %u \n", randomNumber);
+				writeMsg(&handlerCommTerminal, bufferData);
+				break;
+			}
+			}
+			rxData = '\0';
+		}
+		// Se escoge la figura que aparecerá en la matriz
+		int figura = rand() % 7;
+
+		if (figura == 0) { //Cae T
+			estado = 0;
+			punto1[0][0] = -1;
+			punto1[0][1] = 3;
+			punto2[0][0] = -2;
+			punto2[0][1] = 2;
+			punto3[0][0] = -2;
+			punto3[0][1] = 4;
+			punto4[0][0] = -2;
+			punto4[0][1] = 3;
+			while (1) {
+				if (counterButton == 1) { // Interrupción externa del exti del botón SW
+					estado++;
+					giro = 1;
+				}
+				counterButton = 0;
+				// ES un control para que las figuras no bajen más del borde inferior de la matriz
+				if (punto1[0][0] >= 31 || punto2[0][0] >= 31
+						|| punto3[0][0] >= 31 || punto4[0][0] >= 31) {
+					break;
+				}
+				//NO puede hacer nada hasta que no entre en la matriz la figura completa
+				if (estado == 0 || punto1[0][0] <= 1) {
+					if (joystick[1] < 100 && punto2[0][1] > 0
+							&& punto1[0][0] > 1) {
+						if ((matriz[punto1[0][0]][punto1[0][1] - 1] == 0)
+								&& (matriz[punto2[0][0]][punto2[0][1] - 1] == 0)) {//Verificación de que pa donde se vaya a mover esté vacio
+							delay_ms(200);
+							//Se apagan todos los puntos
+							matriz[punto1[0][0]][punto1[0][1]] = 0;
+							matriz[punto2[0][0]][punto2[0][1]] = 0;
+							matriz[punto3[0][0]][punto3[0][1]] = 0;
+							matriz[punto4[0][0]][punto4[0][1]] = 0;
+							//Se restan las columnas porque se va a mover a la izquieda
+							punto1[0][1] = punto1[0][1] - 1;
+							punto2[0][1] = punto2[0][1] - 1;
+							punto3[0][1] = punto3[0][1] - 1;
+							punto4[0][1] = punto4[0][1] - 1;
+							//Se prenden los nuevos puntos
+							matriz[punto1[0][0]][punto1[0][1]] = 1;
+							matriz[punto2[0][0]][punto2[0][1]] = 1;
+							matriz[punto3[0][0]][punto3[0][1]] = 1;
+							matriz[punto4[0][0]][punto4[0][1]] = 1;
+						}
+					}
+					/*  Movimiento joystick hacia el lado derecho de la matriz */
+					if (joystick[1] > 4000 && punto3[0][1] < 7
+							&& punto1[0][0] > 1) {
+						if ((matriz[punto1[0][0]][punto1[0][1] + 1] == 0)
+								&& (matriz[punto3[0][0]][punto3[0][1] + 1] == 0)) {
+							delay_ms(200);
+							matriz[punto1[0][0]][punto1[0][1]] = 0;
+							matriz[punto2[0][0]][punto2[0][1]] = 0;
+							matriz[punto3[0][0]][punto3[0][1]] = 0;
+							matriz[punto4[0][0]][punto4[0][1]] = 0;
+
+							punto1[0][1] = punto1[0][1] + 1;
+							punto2[0][1] = punto2[0][1] + 1;
+							punto3[0][1] = punto3[0][1] + 1;
+							punto4[0][1] = punto4[0][1] + 1;
+
+							matriz[punto1[0][0]][punto1[0][1]] = 1;
+							matriz[punto2[0][0]][punto2[0][1]] = 1;
+							matriz[punto3[0][0]][punto3[0][1]] = 1;
+							matriz[punto4[0][0]][punto4[0][1]] = 1;
+						}
+
+					} else {
+						int test = movimientoT(punto1, punto2, punto3, punto4,
+								matriz);
+						if (test == 1) {//Moviemiento, retorna 1 si sepuede bajar la pieza o cero si no
+							delay_ms(delay);
+							traducir(matriz);
+						} else {
+							break;
+						}
+					}
+					estado = 0;
+				} else if (estado == 1 && punto1[0][0] > 1) {
+					if (giro == 1
+							&& matriz[punto4[0][0] - 1][punto4[0][1]] == 0) {// Se verifica que para donde vaya a girar esté vacio
+						//Se apaga el punto que vaya a girar
+						matriz[punto3[0][0]][punto3[0][1]] = 0;
+						//Se hace el giro y se renombran los puntos
+						punto3[0][0] = punto4[0][0];
+						punto3[0][1] = punto4[0][1];
+						punto4[0][0] = punto4[0][0] - 1;
+						//Encendido del nuevo punto
+						matriz[punto4[0][0]][punto4[0][1]] = 1;
+						traducir(matriz);
+						giro = 0;
+					}
+					if (giro == 0) {
+						if (joystick[1] < 100 && punto2[0][1] > 0
+								&& punto1[0][0] > 1) {
+							if ((matriz[punto1[0][0]][punto1[0][1] - 1] == 0)
+									&& (matriz[punto2[0][0]][punto2[0][1] - 1]
+											== 0)
+									&& (matriz[punto4[0][0]][punto4[0][1] - 1]
+											== 0)) {
+								delay_ms(200);
+								matriz[punto1[0][0]][punto1[0][1]] = 0;
+								matriz[punto2[0][0]][punto2[0][1]] = 0;
+								matriz[punto3[0][0]][punto3[0][1]] = 0;
+								matriz[punto4[0][0]][punto4[0][1]] = 0;
+
+								punto1[0][1] = punto1[0][1] - 1;
+								punto2[0][1] = punto2[0][1] - 1;
+								punto3[0][1] = punto3[0][1] - 1;
+								punto4[0][1] = punto4[0][1] - 1;
+
+								matriz[punto1[0][0]][punto1[0][1]] = 1;
+								matriz[punto2[0][0]][punto2[0][1]] = 1;
+								matriz[punto3[0][0]][punto3[0][1]] = 1;
+								matriz[punto4[0][0]][punto4[0][1]] = 1;
+							}
+						}
+						/*  Movimiento joystick hacia el lado derecho de la matriz */
+						if (joystick[1] > 4000 && punto1[0][1] < 7
+								&& punto1[0][0] > 1) {
+							if ((matriz[punto1[0][0]][punto1[0][1] + 1] == 0)
+									&& (matriz[punto3[0][0]][punto3[0][1] + 1]
+											== 0)
+									&& (matriz[punto4[0][0]][punto4[0][1] + 1]
+											== 0)) {
+								delay_ms(200);
+								matriz[punto1[0][0]][punto1[0][1]] = 0;
+								matriz[punto2[0][0]][punto2[0][1]] = 0;
+								matriz[punto3[0][0]][punto3[0][1]] = 0;
+								matriz[punto4[0][0]][punto4[0][1]] = 0;
+
+								punto1[0][1] = punto1[0][1] + 1;
+								punto2[0][1] = punto2[0][1] + 1;
+								punto3[0][1] = punto3[0][1] + 1;
+								punto4[0][1] = punto4[0][1] + 1;
+
+								matriz[punto1[0][0]][punto1[0][1]] = 1;
+								matriz[punto2[0][0]][punto2[0][1]] = 1;
+								matriz[punto3[0][0]][punto3[0][1]] = 1;
+								matriz[punto4[0][0]][punto4[0][1]] = 1;
+							}
+
+						} else {
+							int test = movimientoTGiro1(punto1, punto2, punto3,
+									punto4, matriz);
+							if (test == 1) {
+								delay_ms(delay);
+								traducir(matriz);
+							} else {
+								break;
+							}
+						}
+					} else {
+						estado--;
+					}
+				} else if (estado == 2 && punto1[0][0] > 1
+						&& punto1[0][1] < 7) {
+					if (giro == 1
+							&& matriz[punto3[0][0]][punto3[0][1] + 1] == 0) {
+						matriz[punto1[0][0]][punto1[0][1]] = 0;
+						punto1[0][0] = punto2[0][0];
+						punto1[0][1] = punto2[0][1];
+						punto2[0][0] = punto3[0][0];
+						punto2[0][1] = punto3[0][1];
+						punto3[0][1] = punto3[0][1] + 1;
+						matriz[punto3[0][0]][punto3[0][1]] = 1;
+						traducir(matriz);
+						giro = 0;
+					}
+					if (giro == 0) {
+						if (joystick[1] < 100 && punto1[0][1] > 0
+								&& punto1[0][0] > 1) {
+							if ((matriz[punto1[0][0]][punto1[0][1] - 1] == 0)
+									&& (matriz[punto4[0][0]][punto4[0][1] - 1]
+											== 0)) {
+								delay_ms(200);
+								matriz[punto1[0][0]][punto1[0][1]] = 0;
+								matriz[punto2[0][0]][punto2[0][1]] = 0;
+								matriz[punto3[0][0]][punto3[0][1]] = 0;
+								matriz[punto4[0][0]][punto4[0][1]] = 0;
+
+								punto1[0][1] = punto1[0][1] - 1;
+								punto2[0][1] = punto2[0][1] - 1;
+								punto3[0][1] = punto3[0][1] - 1;
+								punto4[0][1] = punto4[0][1] - 1;
+
+								matriz[punto1[0][0]][punto1[0][1]] = 1;
+								matriz[punto2[0][0]][punto2[0][1]] = 1;
+								matriz[punto3[0][0]][punto3[0][1]] = 1;
+								matriz[punto4[0][0]][punto4[0][1]] = 1;
+							}
+						}
+						/*  Movimiento joystick hacia el lado derecho de la matriz */
+						if (joystick[1] > 4000 && punto3[0][1] < 7
+								&& punto1[0][0] > 1) {
+							if ((matriz[punto3[0][0]][punto3[0][1] + 1] == 0)
+									&& (matriz[punto4[0][0]][punto4[0][1] + 1]
+											== 0)) {
+								delay_ms(200);
+								matriz[punto1[0][0]][punto1[0][1]] = 0;
+								matriz[punto2[0][0]][punto2[0][1]] = 0;
+								matriz[punto3[0][0]][punto3[0][1]] = 0;
+								matriz[punto4[0][0]][punto4[0][1]] = 0;
+
+								punto1[0][1] = punto1[0][1] + 1;
+								punto2[0][1] = punto2[0][1] + 1;
+								punto3[0][1] = punto3[0][1] + 1;
+								punto4[0][1] = punto4[0][1] + 1;
+
+								matriz[punto1[0][0]][punto1[0][1]] = 1;
+								matriz[punto2[0][0]][punto2[0][1]] = 1;
+								matriz[punto3[0][0]][punto3[0][1]] = 1;
+								matriz[punto4[0][0]][punto4[0][1]] = 1;
+							}
+
+						} else {
+							int test = movimientoTGiro2(punto1, punto2, punto3,
+									punto4, matriz);
+							if (test == 1) {
+								delay_ms(delay);
+								traducir(matriz);
+							} else {
+								break;
+							}
+						}
+					} else {
+						estado--;
+					}
+				} else if (estado == 3 && punto1[0][0] > 1) {
+					if (giro == 1
+							&& matriz[punto2[0][0] + 1][punto2[0][1]] == 0) {
+						matriz[punto1[0][0]][punto1[0][1]] = 0;
+						punto1[0][0] = punto1[0][0] + 1;
+						punto1[0][1] = punto1[0][1] + 1;
+						punto2[0][1] = punto2[0][1] + 1;
+						punto3[0][1] = punto3[0][1] - 1;
+						matriz[punto1[0][0]][punto1[0][1]] = 1;
+						traducir(matriz);
+						delay_ms(200);
+						giro = 0;
+					}
+					if (giro == 0) {
+						if (joystick[1] < 100 && punto1[0][1] > 0
+								&& punto1[0][0] > 1) {
+							if ((matriz[punto1[0][0]][punto1[0][1] - 1] == 0)
+									&& (matriz[punto3[0][0]][punto3[0][1] - 1]
+											== 0)
+									&& (matriz[punto4[0][0]][punto4[0][1] - 1]
+											== 0)) {
+								delay_ms(200);
+								matriz[punto1[0][0]][punto1[0][1]] = 0;
+								matriz[punto2[0][0]][punto2[0][1]] = 0;
+								matriz[punto3[0][0]][punto3[0][1]] = 0;
+								matriz[punto4[0][0]][punto4[0][1]] = 0;
+
+								punto1[0][1] = punto1[0][1] - 1;
+								punto2[0][1] = punto2[0][1] - 1;
+								punto3[0][1] = punto3[0][1] - 1;
+								punto4[0][1] = punto4[0][1] - 1;
+
+								matriz[punto1[0][0]][punto1[0][1]] = 1;
+								matriz[punto2[0][0]][punto2[0][1]] = 1;
+								matriz[punto3[0][0]][punto3[0][1]] = 1;
+								matriz[punto4[0][0]][punto4[0][1]] = 1;
+							}
+						}
+						/*  Movimiento joystick hacia el lado derecho de la matriz */
+						if (joystick[1] > 4000 && punto2[0][1] < 7
+								&& punto1[0][0] > 1) {
+							if ((matriz[punto1[0][0]][punto1[0][1] + 1] == 0)
+									&& (matriz[punto2[0][0]][punto2[0][1] + 1]
+											== 0)
+									&& (matriz[punto4[0][0]][punto4[0][1] + 1]
+											== 0)) {
+								delay_ms(200);
+								matriz[punto1[0][0]][punto1[0][1]] = 0;
+								matriz[punto2[0][0]][punto2[0][1]] = 0;
+								matriz[punto3[0][0]][punto3[0][1]] = 0;
+								matriz[punto4[0][0]][punto4[0][1]] = 0;
+
+								punto1[0][1] = punto1[0][1] + 1;
+								punto2[0][1] = punto2[0][1] + 1;
+								punto3[0][1] = punto3[0][1] + 1;
+								punto4[0][1] = punto4[0][1] + 1;
+
+								matriz[punto1[0][0]][punto1[0][1]] = 1;
+								matriz[punto2[0][0]][punto2[0][1]] = 1;
+								matriz[punto3[0][0]][punto3[0][1]] = 1;
+								matriz[punto4[0][0]][punto4[0][1]] = 1;
+							}
+
+						} else {
+							int test = movimientoTGiro3(punto1, punto2, punto3,
+									punto4, matriz);
+							if (test == 1) {
+								delay_ms(delay);
+								traducir(matriz);
+							} else {
+								break;
+							}
+						}
+					} else {
+						estado--;
+					}
+				} else if (estado == 4 && punto1[0][0] > 1) {
+					if (giro == 1
+							&& matriz[punto3[0][0]][punto3[0][1] - 1] == 0) {
+						matriz[punto4[0][0]][punto4[0][1]] = 0;
+						punto2[0][1] = punto2[0][1] - 2;
+						punto3[0][1] = punto3[0][1] + 1;
+						punto4[0][0] = punto4[0][0] + 1;
+						matriz[punto2[0][0]][punto2[0][1]] = 1;
+						traducir(matriz);
+						delay_ms(delay);
+						giro = 0;
+					}
+					if (giro == 0) {
+						estado = 0;
+					} else {
+						estado--;
+					}
+				} else {
+					estado--;
+					giro = 0;
 				}
 			}
-			/*  Movimiento joystick hacia el lado derecho de la matriz */
-			if (joystick[1] > 3500 && punto4[0][1] < 7) {
-				if (matriz[punto4[0][0]][punto4[0][1] + 1] == 0) {
-					matriz[punto1[0][0]][punto1[0][1]] = 0;
-					matriz[punto2[0][0]][punto2[0][1]] = 0;
-					matriz[punto3[0][0]][punto3[0][1]] = 0;
-					matriz[punto4[0][0]][punto4[0][1]] = 0;
+		}
 
-					punto1[0][1] = punto1[0][1] + 1;
-					punto2[0][1] = punto2[0][1] + 1;
-					punto3[0][1] = punto3[0][1] + 1;
-					punto4[0][1] = punto4[0][1] + 1;
-
-					matriz[punto1[0][0]][punto1[0][1]] = 1;
-					matriz[punto2[0][0]][punto2[0][1]] = 1;
-					matriz[punto3[0][0]][punto3[0][1]] = 1;
-					matriz[punto4[0][0]][punto4[0][1]] = 1;
+		if (figura == 1) { //Cae Palito
+			estado = 0;
+			punto1[0][0] = -1;
+			punto1[0][1] = 3;
+			punto2[0][0] = -3;
+			punto2[0][1] = 3;
+			punto3[0][0] = -4;
+			punto3[0][1] = 3;
+			punto4[0][0] = -5;
+			punto4[0][1] = 3;
+			while (1) {
+				if (counterButton == 1) { // Interrupción externa del exti del botón SW
+					estado++;
+					giro = 1;
 				}
+				counterButton = 0;
+				if (punto1[0][0] >= 31 || punto2[0][0] >= 31
+						|| punto3[0][0] >= 31 || punto4[0][0] >= 31) {
+					break;
+				} else if (estado == 0 || punto1[0][0] <= 2) {
+					if (joystick[1] < 100 && punto1[0][1] > 0
+							&& punto1[0][0] > 2) {
+						if ((matriz[punto1[0][0]][punto1[0][1] - 1] == 0)
+								&& (matriz[punto2[0][0]][punto2[0][1] - 1] == 0)
+								&& (matriz[punto3[0][0]][punto3[0][1] - 1] == 0)
+								&& (matriz[punto4[0][0]][punto4[0][1] - 1] == 0)) {
+							delay_ms(200);
+							matriz[punto1[0][0]][punto1[0][1]] = 0;
+							matriz[punto2[0][0]][punto2[0][1]] = 0;
+							matriz[punto3[0][0]][punto3[0][1]] = 0;
+							matriz[punto4[0][0]][punto4[0][1]] = 0;
 
+							punto1[0][1] = punto1[0][1] - 1;
+							punto2[0][1] = punto2[0][1] - 1;
+							punto3[0][1] = punto3[0][1] - 1;
+							punto4[0][1] = punto4[0][1] - 1;
+
+							matriz[punto1[0][0]][punto1[0][1]] = 1;
+							matriz[punto2[0][0]][punto2[0][1]] = 1;
+							matriz[punto3[0][0]][punto3[0][1]] = 1;
+							matriz[punto4[0][0]][punto4[0][1]] = 1;
+						}
+					}
+					/*  Movimiento joystick hacia el lado derecho de la matriz */
+					if (joystick[1] > 4000 && punto4[0][1] < 7) {
+						if ((matriz[punto1[0][0]][punto1[0][1] + 1] == 0)
+								&& (matriz[punto2[0][0]][punto2[0][1] + 1] == 0)
+								&& (matriz[punto3[0][0]][punto3[0][1] + 1] == 0)
+								&& (matriz[punto4[0][0]][punto4[0][1] + 1] == 0)) {
+							delay_ms(200);
+							matriz[punto1[0][0]][punto1[0][1]] = 0;
+							matriz[punto2[0][0]][punto2[0][1]] = 0;
+							matriz[punto3[0][0]][punto3[0][1]] = 0;
+							matriz[punto4[0][0]][punto4[0][1]] = 0;
+
+							punto1[0][1] = punto1[0][1] + 1;
+							punto2[0][1] = punto2[0][1] + 1;
+							punto3[0][1] = punto3[0][1] + 1;
+							punto4[0][1] = punto4[0][1] + 1;
+
+							matriz[punto1[0][0]][punto1[0][1]] = 1;
+							matriz[punto2[0][0]][punto2[0][1]] = 1;
+							matriz[punto3[0][0]][punto3[0][1]] = 1;
+							matriz[punto4[0][0]][punto4[0][1]] = 1;
+						}
+
+					} else {
+						int test = movimientoPalito(punto1, punto2, punto3,
+								punto4, matriz);
+						if (test == 1) {
+							delay_ms(delay);
+							traducir(matriz);
+						} else {
+							break;
+						}
+					}
+					estado = 0;
+				} else if (estado == 1 && punto1[0][0] > 2
+						&& punto1[0][1] < 5) {
+					if (giro == 1
+							&& (matriz[punto1[0][0]][punto1[0][1] + 1] == 0)
+							&& (matriz[punto1[0][0]][punto1[0][1] + 2] == 0)
+							&& (matriz[punto1[0][0]][punto1[0][1] + 3] == 0)) {
+						matriz[punto2[0][0]][punto2[0][1]] = 0;
+						matriz[punto3[0][0]][punto3[0][1]] = 0;
+						matriz[punto4[0][0]][punto4[0][1]] = 0;
+
+						punto2[0][0] = punto1[0][0];
+						punto2[0][1] = punto1[0][1] + 1;
+						punto3[0][0] = punto1[0][0];
+						punto3[0][1] = punto1[0][1] + 2;
+						punto4[0][0] = punto1[0][0];
+						punto4[0][1] = punto1[0][1] + 3;
+
+						matriz[punto2[0][0]][punto2[0][1]] = 1;
+						matriz[punto3[0][0]][punto3[0][1]] = 1;
+						matriz[punto4[0][0]][punto4[0][1]] = 1;
+						traducir(matriz);
+						giro = 0;
+					}
+					if (giro == 0) {
+						if (joystick[1] < 100 && punto1[0][1] > 0) {
+							if (matriz[punto1[0][0]][punto1[0][1] - 1] == 0) {
+								delay_ms(200);
+								matriz[punto1[0][0]][punto1[0][1]] = 0;
+								matriz[punto2[0][0]][punto2[0][1]] = 0;
+								matriz[punto3[0][0]][punto3[0][1]] = 0;
+								matriz[punto4[0][0]][punto4[0][1]] = 0;
+
+								punto1[0][1] = punto1[0][1] - 1;
+								punto2[0][1] = punto2[0][1] - 1;
+								punto3[0][1] = punto3[0][1] - 1;
+								punto4[0][1] = punto4[0][1] - 1;
+
+								matriz[punto1[0][0]][punto1[0][1]] = 1;
+								matriz[punto2[0][0]][punto2[0][1]] = 1;
+								matriz[punto3[0][0]][punto3[0][1]] = 1;
+								matriz[punto4[0][0]][punto4[0][1]] = 1;
+							}
+						}
+						/*  Movimiento joystick hacia el lado derecho de la matriz */
+						if (joystick[1] > 4000 && punto4[0][1] < 7) {
+							if (matriz[punto4[0][0]][punto4[0][1] + 1] == 0) {
+								delay_ms(200);
+								matriz[punto1[0][0]][punto1[0][1]] = 0;
+								matriz[punto2[0][0]][punto2[0][1]] = 0;
+								matriz[punto3[0][0]][punto3[0][1]] = 0;
+								matriz[punto4[0][0]][punto4[0][1]] = 0;
+
+								punto1[0][1] = punto1[0][1] + 1;
+								punto2[0][1] = punto2[0][1] + 1;
+								punto3[0][1] = punto3[0][1] + 1;
+								punto4[0][1] = punto4[0][1] + 1;
+
+								matriz[punto1[0][0]][punto1[0][1]] = 1;
+								matriz[punto2[0][0]][punto2[0][1]] = 1;
+								matriz[punto3[0][0]][punto3[0][1]] = 1;
+								matriz[punto4[0][0]][punto4[0][1]] = 1;
+							}
+
+						} else {
+							int test = movimientoPalitoGiro(punto1, punto2,
+									punto3, punto4, matriz);
+							if (test == 1) {
+								delay_ms(delay);
+								traducir(matriz);
+							} else {
+								break;
+							}
+						}
+					} else {
+						estado--;
+					}
+				} else if (estado == 2 && punto1[0][0] > 2) {
+					if (giro == 1
+							&& (matriz[punto1[0][0] - 1][punto1[0][1]] == 0)
+							&& (matriz[punto1[0][0] - 2][punto1[0][1]] == 0)
+							&& (matriz[punto1[0][0] - 3][punto1[0][1]] == 0)) {
+						matriz[punto2[0][0]][punto2[0][1]] = 0;
+						matriz[punto3[0][0]][punto3[0][1]] = 0;
+						matriz[punto4[0][0]][punto4[0][1]] = 0;
+
+						punto2[0][0] = punto1[0][0] - 1;
+						punto2[0][1] = punto1[0][1];
+						punto3[0][0] = punto1[0][0] - 2;
+						punto3[0][1] = punto1[0][1];
+						punto4[0][0] = punto1[0][0] - 3;
+						punto4[0][1] = punto1[0][1];
+
+						matriz[punto2[0][0]][punto2[0][1]] = 1;
+						matriz[punto3[0][0]][punto3[0][1]] = 1;
+						matriz[punto4[0][0]][punto4[0][1]] = 1;
+						traducir(matriz);
+						giro = 0;
+					}
+					if (giro == 0) {
+						estado = 0;
+					} else {
+						estado--;
+					}
+				} else {
+					estado--;
+				}
 			}
-			else {
-				__NOP();
+
+		}
+		if (figura == 2) { //Cae L invertida
+			estado = 0;
+			punto1[0][0] = -1;
+			punto1[0][1] = 3;
+			punto2[0][0] = -1;
+			punto2[0][1] = 4;
+			punto3[0][0] = -3;
+			punto3[0][1] = 4;
+			punto4[0][0] = -4;
+			punto4[0][1] = 4;
+			while (1) {
+				if (counterButton == 1) { // Interrupción externa del exti del botón SW
+					estado++;
+					giro = 1;
+				}
+				counterButton = 0;
+				if (punto1[0][0] >= 31 || punto2[0][0] >= 31
+						|| punto3[0][0] >= 31 || punto4[0][0] >= 31) {
+					break;
+				} else if (estado == 0 || punto1[0][0] <= 1) {
+					if (joystick[1] < 100 && punto1[0][1] > 0
+							&& punto1[0][0] > 1) {
+						if ((matriz[punto1[0][0]][punto1[0][1] - 1] == 0)
+								&& (matriz[punto3[0][0]][punto3[0][1] - 1] == 0)
+								&& (matriz[punto4[0][0]][punto4[0][1] - 1] == 0)) {
+							delay_ms(200);
+							matriz[punto1[0][0]][punto1[0][1]] = 0;
+							matriz[punto2[0][0]][punto2[0][1]] = 0;
+							matriz[punto3[0][0]][punto3[0][1]] = 0;
+							matriz[punto4[0][0]][punto4[0][1]] = 0;
+
+							punto1[0][1] = punto1[0][1] - 1;
+							punto2[0][1] = punto2[0][1] - 1;
+							punto3[0][1] = punto3[0][1] - 1;
+							punto4[0][1] = punto4[0][1] - 1;
+
+							matriz[punto1[0][0]][punto1[0][1]] = 1;
+							matriz[punto2[0][0]][punto2[0][1]] = 1;
+							matriz[punto3[0][0]][punto3[0][1]] = 1;
+							matriz[punto4[0][0]][punto4[0][1]] = 1;
+						}
+					}
+					/*  Movimiento joystick hacia el lado derecho de la matriz */
+					if (joystick[1] > 4000 && punto2[0][1] < 7
+							&& punto1[0][0] > 1) {
+						if ((matriz[punto2[0][0]][punto2[0][1] + 1] == 0)
+								&& (matriz[punto3[0][0]][punto3[0][1] + 1] == 0)
+								&& (matriz[punto4[0][0]][punto4[0][1] + 1] == 0)) {
+							delay_ms(200);
+							matriz[punto1[0][0]][punto1[0][1]] = 0;
+							matriz[punto2[0][0]][punto2[0][1]] = 0;
+							matriz[punto3[0][0]][punto3[0][1]] = 0;
+							matriz[punto4[0][0]][punto4[0][1]] = 0;
+
+							punto1[0][1] = punto1[0][1] + 1;
+							punto2[0][1] = punto2[0][1] + 1;
+							punto3[0][1] = punto3[0][1] + 1;
+							punto4[0][1] = punto4[0][1] + 1;
+
+							matriz[punto1[0][0]][punto1[0][1]] = 1;
+							matriz[punto2[0][0]][punto2[0][1]] = 1;
+							matriz[punto3[0][0]][punto3[0][1]] = 1;
+							matriz[punto4[0][0]][punto4[0][1]] = 1;
+						}
+
+					} else {
+						int test = movimientoLInvertida(punto1, punto2, punto3,
+								punto4, matriz);
+						if (test == 1) {
+							delay_ms(delay);
+							traducir(matriz);
+						} else {
+							break;
+						}
+					}
+					estado = 0;
+				} else if (estado == 1 && punto1[0][0] > 1
+						&& punto3[0][1] < 7) {
+					if (giro == 1
+							&& (matriz[punto3[0][0]][punto3[0][1] - 1] == 0)
+							&& (matriz[punto3[0][0]][punto3[0][1] + 1] == 0)
+							&& (matriz[punto3[0][0] - 1][punto3[0][1] - 1] == 0)) {
+						matriz[punto1[0][0]][punto1[0][1]] = 0;
+						matriz[punto2[0][0]][punto2[0][1]] = 0;
+						matriz[punto4[0][0]][punto4[0][1]] = 0;
+
+						punto1[0][0] = punto3[0][0];
+						punto1[0][1] = punto3[0][1] - 1;
+						punto2[0][0] = punto3[0][0];
+						punto2[0][1] = punto3[0][1];
+						punto3[0][0] = punto3[0][0];
+						punto3[0][1] = punto3[0][1] + 1;
+						punto4[0][0] = punto4[0][0];
+						punto4[0][1] = punto4[0][1] - 1;
+
+						matriz[punto1[0][0]][punto1[0][1]] = 1;
+						matriz[punto3[0][0]][punto3[0][1]] = 1;
+						matriz[punto4[0][0]][punto4[0][1]] = 1;
+						traducir(matriz);
+						giro = 0;
+					}
+					if (giro == 0) {
+						if (joystick[1] < 100 && punto1[0][1] > 0
+								&& punto1[0][0] > 1) {
+							if ((matriz[punto1[0][0]][punto1[0][1] - 1] == 0)
+									&& (matriz[punto4[0][0]][punto4[0][1] - 1]
+											== 0)) {
+								delay_ms(200);
+								matriz[punto1[0][0]][punto1[0][1]] = 0;
+								matriz[punto2[0][0]][punto2[0][1]] = 0;
+								matriz[punto3[0][0]][punto3[0][1]] = 0;
+								matriz[punto4[0][0]][punto4[0][1]] = 0;
+
+								punto1[0][1] = punto1[0][1] - 1;
+								punto2[0][1] = punto2[0][1] - 1;
+								punto3[0][1] = punto3[0][1] - 1;
+								punto4[0][1] = punto4[0][1] - 1;
+
+								matriz[punto1[0][0]][punto1[0][1]] = 1;
+								matriz[punto2[0][0]][punto2[0][1]] = 1;
+								matriz[punto3[0][0]][punto3[0][1]] = 1;
+								matriz[punto4[0][0]][punto4[0][1]] = 1;
+							}
+						}
+						/*  Movimiento joystick hacia el lado derecho de la matriz */
+						if (joystick[1] > 4000 && punto3[0][1] < 7
+								&& punto1[0][0] > 1) {
+							if ((matriz[punto3[0][0]][punto3[0][1] + 1] == 0)
+									&& (matriz[punto4[0][0]][punto4[0][1] + 1]
+											== 0)) {
+								delay_ms(200);
+								matriz[punto1[0][0]][punto1[0][1]] = 0;
+								matriz[punto2[0][0]][punto2[0][1]] = 0;
+								matriz[punto3[0][0]][punto3[0][1]] = 0;
+								matriz[punto4[0][0]][punto4[0][1]] = 0;
+
+								punto1[0][1] = punto1[0][1] + 1;
+								punto2[0][1] = punto2[0][1] + 1;
+								punto3[0][1] = punto3[0][1] + 1;
+								punto4[0][1] = punto4[0][1] + 1;
+
+								matriz[punto1[0][0]][punto1[0][1]] = 1;
+								matriz[punto2[0][0]][punto2[0][1]] = 1;
+								matriz[punto3[0][0]][punto3[0][1]] = 1;
+								matriz[punto4[0][0]][punto4[0][1]] = 1;
+							}
+
+						} else {
+							int test = movimientoLInvertidaGiro1(punto1, punto2,
+									punto3, punto4, matriz);
+							if (test == 1) {
+								delay_ms(delay);
+								traducir(matriz);
+							} else {
+								break;
+							}
+						}
+					} else {
+						estado--;
+					}
+				} else if (estado == 2) {
+					if (giro == 1
+							&& (matriz[punto2[0][0] + 1][punto2[0][1]] == 0)
+							&& (matriz[punto2[0][0] - 1][punto2[0][1] + 1] == 0)
+							&& (matriz[punto2[0][0] - 1][punto2[0][1]] == 0)) {
+						matriz[punto1[0][0]][punto1[0][1]] = 0;
+						matriz[punto3[0][0]][punto3[0][1]] = 0;
+						matriz[punto4[0][0]][punto4[0][1]] = 0;
+
+						punto1[0][0] = punto1[0][0] + 1;
+						punto1[0][1] = punto1[0][1] + 1;
+						punto2[0][0] = punto2[0][0] - 1;
+						punto2[0][1] = punto2[0][1] + 1;
+						punto3[0][0] = punto3[0][0];
+						punto3[0][1] = punto3[0][1] - 1;
+						punto4[0][0] = punto4[0][0];
+						punto4[0][1] = punto4[0][1] + 1;
+
+						matriz[punto1[0][0]][punto1[0][1]] = 1;
+						matriz[punto2[0][0]][punto2[0][1]] = 1;
+						matriz[punto4[0][0]][punto4[0][1]] = 1;
+						traducir(matriz);
+						giro = 0;
+					}
+					if (giro == 0) {
+						if (joystick[1] < 100 && punto1[0][1] > 0
+								&& punto1[0][0] > 1) {
+							if ((matriz[punto1[0][0]][punto1[0][1] - 1] == 0)
+									&& (matriz[punto3[0][0]][punto3[0][1] - 1]
+											== 0)
+									&& (matriz[punto4[0][0]][punto4[0][1] - 1]
+											== 0)) {
+								delay_ms(200);
+								matriz[punto1[0][0]][punto1[0][1]] = 0;
+								matriz[punto2[0][0]][punto2[0][1]] = 0;
+								matriz[punto3[0][0]][punto3[0][1]] = 0;
+								matriz[punto4[0][0]][punto4[0][1]] = 0;
+
+								punto1[0][1] = punto1[0][1] - 1;
+								punto2[0][1] = punto2[0][1] - 1;
+								punto3[0][1] = punto3[0][1] - 1;
+								punto4[0][1] = punto4[0][1] - 1;
+
+								matriz[punto1[0][0]][punto1[0][1]] = 1;
+								matriz[punto2[0][0]][punto2[0][1]] = 1;
+								matriz[punto3[0][0]][punto3[0][1]] = 1;
+								matriz[punto4[0][0]][punto4[0][1]] = 1;
+							}
+						}
+						/*  Movimiento joystick hacia el lado derecho de la matriz */
+						if (joystick[1] > 4000 && punto2[0][1] < 7
+								&& punto1[0][0] > 1) {
+							if ((matriz[punto1[0][0]][punto1[0][1] + 1] == 0)
+									&& (matriz[punto2[0][0]][punto2[0][1] + 1]
+											== 0)
+									&& (matriz[punto3[0][0]][punto3[0][1] + 1]
+											== 0)) {
+								delay_ms(200);
+								matriz[punto1[0][0]][punto1[0][1]] = 0;
+								matriz[punto2[0][0]][punto2[0][1]] = 0;
+								matriz[punto3[0][0]][punto3[0][1]] = 0;
+								matriz[punto4[0][0]][punto4[0][1]] = 0;
+
+								punto1[0][1] = punto1[0][1] + 1;
+								punto2[0][1] = punto2[0][1] + 1;
+								punto3[0][1] = punto3[0][1] + 1;
+								punto4[0][1] = punto4[0][1] + 1;
+
+								matriz[punto1[0][0]][punto1[0][1]] = 1;
+								matriz[punto2[0][0]][punto2[0][1]] = 1;
+								matriz[punto3[0][0]][punto3[0][1]] = 1;
+								matriz[punto4[0][0]][punto4[0][1]] = 1;
+							}
+
+						} else {
+							int test = movimientoLInvertidaGiro2(punto1, punto2,
+									punto3, punto4, matriz);
+							if (test == 1) {
+								delay_ms(delay);
+								traducir(matriz);
+							} else {
+								break;
+							}
+						}
+					} else {
+						estado--;
+					}
+				} else if (estado == 3 && punto1[0][0] > 1 && punto3[0][1]) {
+					if (giro == 1
+							&& (matriz[punto3[0][0] + 1][punto3[0][1] + 1] == 0)
+							&& (matriz[punto3[0][0]][punto3[0][1] - 1] == 0)
+							&& (matriz[punto3[0][0]][punto3[0][1] + 1] == 0)
+							&& punto3[0][1] > 0) {
+						delay_ms(200);
+						matriz[punto1[0][0]][punto1[0][1]] = 0;
+						matriz[punto2[0][0]][punto2[0][1]] = 0;
+						matriz[punto4[0][0]][punto4[0][1]] = 0;
+
+						punto1[0][1] = punto1[0][1] + 1;
+						punto2[0][0] = punto2[0][0] + 1;
+						punto2[0][1] = punto2[0][1] - 2;
+						punto4[0][0] = punto4[0][0] + 1;
+						punto4[0][1] = punto4[0][1] + 1;
+
+						matriz[punto1[0][0]][punto1[0][1]] = 1;
+						matriz[punto2[0][0]][punto2[0][1]] = 1;
+						matriz[punto4[0][0]][punto4[0][1]] = 1;
+						traducir(matriz);
+						giro = 0;
+					}
+					if (giro == 0) {
+						if (joystick[1] < 100 && punto2[0][1] > 0
+								&& punto1[0][0] > 1) {
+							if ((matriz[punto1[0][0]][punto1[0][1] - 1] == 0)
+									&& (matriz[punto2[0][0]][punto2[0][1] - 1]
+											== 0)) {
+								delay_ms(200);
+								matriz[punto1[0][0]][punto1[0][1]] = 0;
+								matriz[punto2[0][0]][punto2[0][1]] = 0;
+								matriz[punto3[0][0]][punto3[0][1]] = 0;
+								matriz[punto4[0][0]][punto4[0][1]] = 0;
+
+								punto1[0][1] = punto1[0][1] - 1;
+								punto2[0][1] = punto2[0][1] - 1;
+								punto3[0][1] = punto3[0][1] - 1;
+								punto4[0][1] = punto4[0][1] - 1;
+
+								matriz[punto1[0][0]][punto1[0][1]] = 1;
+								matriz[punto2[0][0]][punto2[0][1]] = 1;
+								matriz[punto3[0][0]][punto3[0][1]] = 1;
+								matriz[punto4[0][0]][punto4[0][1]] = 1;
+							}
+						}
+						/*  Movimiento joystick hacia el lado derecho de la matriz */
+						if (joystick[1] > 4000 && punto1[0][1] < 7
+								&& punto1[0][0] > 1) {
+							if ((matriz[punto1[0][0]][punto1[0][1] + 1] == 0)
+									&& (matriz[punto4[0][0]][punto4[0][1] + 1]
+											== 0)) {
+								delay_ms(200);
+								matriz[punto1[0][0]][punto1[0][1]] = 0;
+								matriz[punto2[0][0]][punto2[0][1]] = 0;
+								matriz[punto3[0][0]][punto3[0][1]] = 0;
+								matriz[punto4[0][0]][punto4[0][1]] = 0;
+
+								punto1[0][1] = punto1[0][1] + 1;
+								punto2[0][1] = punto2[0][1] + 1;
+								punto3[0][1] = punto3[0][1] + 1;
+								punto4[0][1] = punto4[0][1] + 1;
+
+								matriz[punto1[0][0]][punto1[0][1]] = 1;
+								matriz[punto2[0][0]][punto2[0][1]] = 1;
+								matriz[punto3[0][0]][punto3[0][1]] = 1;
+								matriz[punto4[0][0]][punto4[0][1]] = 1;
+							}
+
+						} else {
+							int test = movimientoLInvertidaGiro3(punto1, punto2,
+									punto3, punto4, matriz);
+							if (test == 1) {
+								delay_ms(delay);
+								traducir(matriz);
+							} else {
+								break;
+							}
+						}
+					} else {
+						estado--;
+					}
+				} else if (estado == 4 && punto1[0][0] > 1) {
+					if (giro == 1
+							&& (matriz[punto3[0][0] + 1][punto3[0][1]] == 0)
+							&& (matriz[punto3[0][0] + 1][punto3[0][1] - 1] == 0)
+							&& (matriz[punto3[0][0] - 1][punto3[0][1]] == 0)) {
+						matriz[punto1[0][0]][punto1[0][1]] = 0;
+						matriz[punto2[0][0]][punto2[0][1]] = 0;
+						matriz[punto4[0][0]][punto4[0][1]] = 0;
+
+						punto1[0][0] = punto3[0][0] + 1;
+						punto1[0][1] = punto3[0][1];
+						punto2[0][0] = punto3[0][0] + 1;
+						punto2[0][1] = punto3[0][1] - 1;
+						punto4[0][0] = punto3[0][0] - 1;
+						punto4[0][1] = punto3[0][1];
+
+						matriz[punto1[0][0]][punto1[0][1]] = 1;
+						matriz[punto2[0][0]][punto2[0][1]] = 1;
+						matriz[punto4[0][0]][punto4[0][1]] = 1;
+						traducir(matriz);
+						delay_ms(200);
+						giro = 0;
+					}
+					if (giro == 0) {
+						estado = 0;
+					} else {
+						estado--;
+					}
+				} else {
+					estado--;
+					giro = 0;
+				}
 			}
+		}
+		if (figura == 3) { //Cae L
+			estado = 0;
+			punto1[0][0] = -1;
+			punto1[0][1] = 3;
+			punto2[0][0] = -1;
+			punto2[0][1] = 4;
+			punto3[0][0] = -3;
+			punto3[0][1] = 3;
+			punto4[0][0] = -4;
+			punto4[0][1] = 3;
+			while (1) {
+				if (counterButton == 1) { // Interrupción externa del exti del botón SW
+					estado++;
+					giro = 1;
+				}
+				counterButton = 0;
+				if (punto1[0][0] >= 31 || punto2[0][0] >= 31
+						|| punto3[0][0] >= 31 || punto4[0][0] >= 31) {
+					break;
+				} else if (estado == 0 || punto1[0][0] <= 1) {
+					if (joystick[1] < 100 && punto1[0][1] > 0
+							&& punto1[0][0] > 1) {
+						if ((matriz[punto1[0][0]][punto1[0][1] - 1] == 0)
+								&& (matriz[punto3[0][0]][punto3[0][1] - 1] == 0)
+								&& (matriz[punto4[0][0]][punto4[0][1] - 1] == 0)) {
+							delay_ms(200);
+							matriz[punto1[0][0]][punto1[0][1]] = 0;
+							matriz[punto2[0][0]][punto2[0][1]] = 0;
+							matriz[punto3[0][0]][punto3[0][1]] = 0;
+							matriz[punto4[0][0]][punto4[0][1]] = 0;
+
+							punto1[0][1] = punto1[0][1] - 1;
+							punto2[0][1] = punto2[0][1] - 1;
+							punto3[0][1] = punto3[0][1] - 1;
+							punto4[0][1] = punto4[0][1] - 1;
+
+							matriz[punto1[0][0]][punto1[0][1]] = 1;
+							matriz[punto2[0][0]][punto2[0][1]] = 1;
+							matriz[punto3[0][0]][punto3[0][1]] = 1;
+							matriz[punto4[0][0]][punto4[0][1]] = 1;
+						}
+					}
+					/*  Movimiento joystick hacia el lado derecho de la matriz */
+					if (joystick[1] > 4000 && punto2[0][1] < 7
+							&& punto1[0][0] > 1) {
+						if ((matriz[punto2[0][0]][punto2[0][1] + 1] == 0)
+								&& (matriz[punto3[0][0]][punto3[0][1] + 1] == 0)
+								&& (matriz[punto4[0][0]][punto4[0][1] + 1] == 0)) {
+							delay_ms(200);
+							matriz[punto1[0][0]][punto1[0][1]] = 0;
+							matriz[punto2[0][0]][punto2[0][1]] = 0;
+							matriz[punto3[0][0]][punto3[0][1]] = 0;
+							matriz[punto4[0][0]][punto4[0][1]] = 0;
+
+							punto1[0][1] = punto1[0][1] + 1;
+							punto2[0][1] = punto2[0][1] + 1;
+							punto3[0][1] = punto3[0][1] + 1;
+							punto4[0][1] = punto4[0][1] + 1;
+
+							matriz[punto1[0][0]][punto1[0][1]] = 1;
+							matriz[punto2[0][0]][punto2[0][1]] = 1;
+							matriz[punto3[0][0]][punto3[0][1]] = 1;
+							matriz[punto4[0][0]][punto4[0][1]] = 1;
+						}
+
+					} else {
+						int test = movimientoL(punto1, punto2, punto3, punto4,
+								matriz);
+						if (test == 1) {
+							delay_ms(delay);
+							traducir(matriz);
+						} else {
+							break;
+						}
+					}
+					estado = 0;
+				} else if (estado == 1 && punto1[0][0] > 1 && punto3[0][1] > 0
+						&& punto2[0][1] < 7) {
+					if (giro == 1
+							&& (matriz[punto3[0][0] + 1][punto3[0][1] - 1] == 0)
+							&& (matriz[punto3[0][0]][punto3[0][1] + 1] == 0)
+							&& (matriz[punto3[0][0]][punto3[0][1] - 1] == 0)) {
+						matriz[punto1[0][0]][punto1[0][1]] = 0;
+						matriz[punto2[0][0]][punto2[0][1]] = 0;
+						matriz[punto4[0][0]][punto4[0][1]] = 0;
+
+						punto1[0][1] = punto1[0][1] - 1;
+						punto2[0][0] = punto2[0][0] - 1;
+						punto2[0][1] = punto2[0][1] - 1;
+						punto3[0][1] = punto3[0][1] + 1;
+						punto4[0][0] = punto4[0][0] + 1;
+						punto4[0][1] = punto4[0][1] - 1;
+
+						matriz[punto1[0][0]][punto1[0][1]] = 1;
+						matriz[punto2[0][0]][punto2[0][1]] = 1;
+						matriz[punto4[0][0]][punto4[0][1]] = 1;
+						traducir(matriz);
+						giro = 0;
+					}
+					if (giro == 0) {
+						if (joystick[1] < 100 && punto1[0][1] > 0
+								&& punto1[0][0] > 1) {
+							if ((matriz[punto1[0][0]][punto1[0][1] - 1] == 0)
+									&& (matriz[punto4[0][0]][punto4[0][1] - 1]
+											== 0)) {
+								delay_ms(200);
+								matriz[punto1[0][0]][punto1[0][1]] = 0;
+								matriz[punto2[0][0]][punto2[0][1]] = 0;
+								matriz[punto3[0][0]][punto3[0][1]] = 0;
+								matriz[punto4[0][0]][punto4[0][1]] = 0;
+
+								punto1[0][1] = punto1[0][1] - 1;
+								punto2[0][1] = punto2[0][1] - 1;
+								punto3[0][1] = punto3[0][1] - 1;
+								punto4[0][1] = punto4[0][1] - 1;
+
+								matriz[punto1[0][0]][punto1[0][1]] = 1;
+								matriz[punto2[0][0]][punto2[0][1]] = 1;
+								matriz[punto3[0][0]][punto3[0][1]] = 1;
+								matriz[punto4[0][0]][punto4[0][1]] = 1;
+							}
+						}
+						/*  Movimiento joystick hacia el lado derecho de la matriz */
+						if (joystick[1] > 4000 && punto3[0][1] < 7
+								&& punto1[0][0] > 1) {
+							if ((matriz[punto1[0][0]][punto1[0][1] + 1] == 0)
+									&& (matriz[punto3[0][0]][punto3[0][1] + 1]
+											== 0)) {
+								delay_ms(200);
+								matriz[punto1[0][0]][punto1[0][1]] = 0;
+								matriz[punto2[0][0]][punto2[0][1]] = 0;
+								matriz[punto3[0][0]][punto3[0][1]] = 0;
+								matriz[punto4[0][0]][punto4[0][1]] = 0;
+
+								punto1[0][1] = punto1[0][1] + 1;
+								punto2[0][1] = punto2[0][1] + 1;
+								punto3[0][1] = punto3[0][1] + 1;
+								punto4[0][1] = punto4[0][1] + 1;
+
+								matriz[punto1[0][0]][punto1[0][1]] = 1;
+								matriz[punto2[0][0]][punto2[0][1]] = 1;
+								matriz[punto3[0][0]][punto3[0][1]] = 1;
+								matriz[punto4[0][0]][punto4[0][1]] = 1;
+							}
+
+						} else {
+							int test = movimientoLGiro1(punto1, punto2, punto3,
+									punto4, matriz);
+							if (test == 1) {
+								delay_ms(delay);
+								traducir(matriz);
+							} else {
+								break;
+							}
+						}
+					} else {
+						estado--;
+					}
+				} else if (estado == 2 && punto1[0][0] > 1) {
+					if (giro == 1
+							&& (matriz[punto3[0][0] + 1][punto3[0][1]] == 0)
+							&& (matriz[punto3[0][0] - 1][punto3[0][1] - 1] == 0)
+							&& (matriz[punto3[0][0] - 1][punto3[0][1]] == 0)) {
+						matriz[punto1[0][0]][punto1[0][1]] = 0;
+						matriz[punto2[0][0]][punto2[0][1]] = 0;
+						matriz[punto4[0][0]][punto4[0][1]] = 0;
+
+						punto1[0][0] = punto3[0][0] + 1;
+						punto1[0][1] = punto3[0][1];
+						punto2[0][0] = punto3[0][0] - 1;
+						punto2[0][1] = punto3[0][1] - 1;
+						punto4[0][0] = punto3[0][0] - 1;
+						punto4[0][1] = punto3[0][1];
+
+						matriz[punto1[0][0]][punto1[0][1]] = 1;
+						matriz[punto2[0][0]][punto2[0][1]] = 1;
+						matriz[punto4[0][0]][punto4[0][1]] = 1;
+						traducir(matriz);
+						giro = 0;
+					}
+					if (giro == 0) {
+						if (joystick[1] < 100 && punto1[0][1] > 0
+								&& punto2[0][1] > 0) {
+							if ((matriz[punto1[0][0]][punto1[0][1] - 1] == 0)
+									&& (matriz[punto2[0][0]][punto2[0][1] - 1]
+											== 0)
+									&& (matriz[punto3[0][0]][punto3[0][1] - 1]
+											== 0)) {
+								delay_ms(200);
+								matriz[punto1[0][0]][punto1[0][1]] = 0;
+								matriz[punto2[0][0]][punto2[0][1]] = 0;
+								matriz[punto3[0][0]][punto3[0][1]] = 0;
+								matriz[punto4[0][0]][punto4[0][1]] = 0;
+
+								punto1[0][1] = punto1[0][1] - 1;
+								punto2[0][1] = punto2[0][1] - 1;
+								punto3[0][1] = punto3[0][1] - 1;
+								punto4[0][1] = punto4[0][1] - 1;
+
+								matriz[punto1[0][0]][punto1[0][1]] = 1;
+								matriz[punto2[0][0]][punto2[0][1]] = 1;
+								matriz[punto3[0][0]][punto3[0][1]] = 1;
+								matriz[punto4[0][0]][punto4[0][1]] = 1;
+							}
+						}
+						/*  Movimiento joystick hacia el lado derecho de la matriz */
+						if (joystick[1] > 4000 && punto1[0][1] < 7
+								&& punto1[0][0] > 1) {
+							if ((matriz[punto1[0][0]][punto1[0][1] + 1] == 0)
+									&& (matriz[punto3[0][0]][punto3[0][1] + 1]
+											== 0)
+									&& (matriz[punto4[0][0]][punto4[0][1] + 1]
+											== 0)) {
+								delay_ms(200);
+								matriz[punto1[0][0]][punto1[0][1]] = 0;
+								matriz[punto2[0][0]][punto2[0][1]] = 0;
+								matriz[punto3[0][0]][punto3[0][1]] = 0;
+								matriz[punto4[0][0]][punto4[0][1]] = 0;
+
+								punto1[0][1] = punto1[0][1] + 1;
+								punto2[0][1] = punto2[0][1] + 1;
+								punto3[0][1] = punto3[0][1] + 1;
+								punto4[0][1] = punto4[0][1] + 1;
+
+								matriz[punto1[0][0]][punto1[0][1]] = 1;
+								matriz[punto2[0][0]][punto2[0][1]] = 1;
+								matriz[punto3[0][0]][punto3[0][1]] = 1;
+								matriz[punto4[0][0]][punto4[0][1]] = 1;
+							}
+
+						} else {
+							int test = movimientoLGiro2(punto1, punto2, punto3,
+									punto4, matriz);
+							if (test == 1) {
+								delay_ms(delay);
+								traducir(matriz);
+							} else {
+								break;
+							}
+						}
+					} else {
+						estado--;
+					}
+				} else if (estado == 3 && punto1[0][0] > 1
+						&& punto1[0][1] < 7) {
+					if (giro == 1
+							&& (matriz[punto3[0][0]][punto3[0][1] - 1] == 0)
+							&& (matriz[punto3[0][0]][punto3[0][1] + 1] == 0)
+							&& (matriz[punto3[0][0] - 1][punto3[0][1] + 1] == 0)) {
+						matriz[punto1[0][0]][punto1[0][1]] = 0;
+						matriz[punto2[0][0]][punto2[0][1]] = 0;
+						matriz[punto4[0][0]][punto4[0][1]] = 0;
+
+						punto1[0][0] = punto3[0][0];
+						punto1[0][1] = punto3[0][1] - 1;
+						punto2[0][0] = punto3[0][0];
+						punto2[0][1] = punto3[0][1];
+						punto3[0][1] = punto3[0][1] + 1;
+						punto4[0][0] = punto2[0][0] - 1;
+						punto4[0][1] = punto2[0][1] + 1;
+
+						matriz[punto1[0][0]][punto1[0][1]] = 1;
+						matriz[punto3[0][0]][punto3[0][1]] = 1;
+						matriz[punto4[0][0]][punto4[0][1]] = 1;
+						traducir(matriz);
+						delay_ms(200);
+						giro = 0;
+					}
+					if (giro == 0) {
+						if (joystick[1] < 100 && punto1[0][1] > 0
+								&& punto1[0][0] > 1) {
+							if ((matriz[punto1[0][0]][punto1[0][1] - 1] == 0)
+									&& (matriz[punto4[0][0]][punto4[0][1] - 1]
+											== 0)) {
+								delay_ms(200);
+								matriz[punto1[0][0]][punto1[0][1]] = 0;
+								matriz[punto2[0][0]][punto2[0][1]] = 0;
+								matriz[punto3[0][0]][punto3[0][1]] = 0;
+								matriz[punto4[0][0]][punto4[0][1]] = 0;
+
+								punto1[0][1] = punto1[0][1] - 1;
+								punto2[0][1] = punto2[0][1] - 1;
+								punto3[0][1] = punto3[0][1] - 1;
+								punto4[0][1] = punto4[0][1] - 1;
+
+								matriz[punto1[0][0]][punto1[0][1]] = 1;
+								matriz[punto2[0][0]][punto2[0][1]] = 1;
+								matriz[punto3[0][0]][punto3[0][1]] = 1;
+								matriz[punto4[0][0]][punto4[0][1]] = 1;
+							}
+						}
+						/*  Movimiento joystick hacia el lado derecho de la matriz */
+						if (joystick[1] > 4000 && punto3[0][1] < 7
+								&& punto1[0][0] > 1) {
+							if ((matriz[punto3[0][0]][punto3[0][1] + 1] == 0)
+									&& (matriz[punto4[0][0]][punto4[0][1] + 1]
+											== 0)) {
+								delay_ms(200);
+								matriz[punto1[0][0]][punto1[0][1]] = 0;
+								matriz[punto2[0][0]][punto2[0][1]] = 0;
+								matriz[punto3[0][0]][punto3[0][1]] = 0;
+								matriz[punto4[0][0]][punto4[0][1]] = 0;
+
+								punto1[0][1] = punto1[0][1] + 1;
+								punto2[0][1] = punto2[0][1] + 1;
+								punto3[0][1] = punto3[0][1] + 1;
+								punto4[0][1] = punto4[0][1] + 1;
+
+								matriz[punto1[0][0]][punto1[0][1]] = 1;
+								matriz[punto2[0][0]][punto2[0][1]] = 1;
+								matriz[punto3[0][0]][punto3[0][1]] = 1;
+								matriz[punto4[0][0]][punto4[0][1]] = 1;
+							}
+
+						} else {
+							int test = movimientoLGiro3(punto1, punto2, punto3,
+									punto4, matriz);
+							if (test == 1) {
+								delay_ms(delay);
+								traducir(matriz);
+							} else {
+								break;
+							}
+						}
+					} else {
+						estado--;
+					}
+				} else if (estado == 4 && punto1[0][0] > 1) {
+					if (giro == 1
+							&& (matriz[punto2[0][0] + 1][punto2[0][1]] == 0)
+							&& (matriz[punto2[0][0] + 1][punto2[0][1] + 1] == 0)
+							&& (matriz[punto2[0][0] - 1][punto2[0][1]] == 0)) {
+						matriz[punto1[0][0]][punto1[0][1]] = 0;
+						matriz[punto3[0][0]][punto3[0][1]] = 0;
+						matriz[punto4[0][0]][punto4[0][1]] = 0;
+
+						punto1[0][0] = punto2[0][0] + 1;
+						punto1[0][1] = punto2[0][1];
+						punto2[0][0] = punto2[0][0] + 1;
+						punto2[0][1] = punto2[0][1] + 1;
+						punto3[0][1] = punto3[0][1] - 1;
+						punto4[0][0] = punto3[0][0] - 1;
+						punto4[0][1] = punto3[0][1];
+
+						matriz[punto1[0][0]][punto1[0][1]] = 1;
+						matriz[punto2[0][0]][punto2[0][1]] = 1;
+						matriz[punto4[0][0]][punto4[0][1]] = 1;
+						traducir(matriz);
+						delay_ms(200);
+						giro = 0;
+					}
+					if (giro == 0) {
+						estado = 0;
+					} else {
+						estado--;
+					}
+				} else {
+					estado--;
+					giro = 0;
+				}
+			}
+		}
+
+		if (figura == 4) { //Cae Cubo
+			punto1[0][0] = -1;
+			punto1[0][1] = 3;
+			punto2[0][0] = -1;
+			punto2[0][1] = 4;
+			punto3[0][0] = -3;
+			punto3[0][1] = 3;
+			punto4[0][0] = -3;
+			punto4[0][1] = 4;
+			while (1) {
+				if (joystick[1] < 100 && punto1[0][0] > 1 && punto1[0][1] > 0) {
+					if ((matriz[punto1[0][0]][punto1[0][1] - 1] == 0)
+							&& (matriz[punto3[0][0]][punto3[0][1] - 1] == 0)) {
+						delay_ms(200);
+						matriz[punto1[0][0]][punto1[0][1]] = 0;
+						matriz[punto2[0][0]][punto2[0][1]] = 0;
+						matriz[punto3[0][0]][punto3[0][1]] = 0;
+						matriz[punto4[0][0]][punto4[0][1]] = 0;
+
+						punto1[0][1] = punto1[0][1] - 1;
+						punto2[0][1] = punto2[0][1] - 1;
+						punto3[0][1] = punto3[0][1] - 1;
+						punto4[0][1] = punto4[0][1] - 1;
+
+						matriz[punto1[0][0]][punto1[0][1]] = 1;
+						matriz[punto2[0][0]][punto2[0][1]] = 1;
+						matriz[punto3[0][0]][punto3[0][1]] = 1;
+						matriz[punto4[0][0]][punto4[0][1]] = 1;
+					}
+				}
+				/*  Movimiento joystick hacia el lado derecho de la matriz */
+				if (joystick[1] > 4000 && punto2[0][1] < 7
+						&& punto1[0][0] > 1) {
+					if ((matriz[punto2[0][0]][punto2[0][1] + 1] == 0)
+							&& (matriz[punto4[0][0]][punto4[0][1] + 1] == 0)) {
+						delay_ms(200);
+						matriz[punto1[0][0]][punto1[0][1]] = 0;
+						matriz[punto2[0][0]][punto2[0][1]] = 0;
+						matriz[punto3[0][0]][punto3[0][1]] = 0;
+						matriz[punto4[0][0]][punto4[0][1]] = 0;
+
+						punto1[0][1] = punto1[0][1] + 1;
+						punto2[0][1] = punto2[0][1] + 1;
+						punto3[0][1] = punto3[0][1] + 1;
+						punto4[0][1] = punto4[0][1] + 1;
+
+						matriz[punto1[0][0]][punto1[0][1]] = 1;
+						matriz[punto2[0][0]][punto2[0][1]] = 1;
+						matriz[punto3[0][0]][punto3[0][1]] = 1;
+						matriz[punto4[0][0]][punto4[0][1]] = 1;
+					}
+
+				} else {
+					int test = movimientoCubo(punto1, punto2, punto3, punto4,
+							matriz);
+					if (test == 1) {
+						delay_ms(delay);
+						traducir(matriz);
+					} else {
+						break;
+					}
+				}
+				estado = 0;
+			}
+		}
+
+		if (figura == 5) { //Cae S
+			estado = 0;
+			punto1[0][0] = -1;
+			punto1[0][1] = 3;
+			punto2[0][0] = -1;
+			punto2[0][1] = 4;
+			punto3[0][0] = -2;
+			punto3[0][1] = 5;
+			punto4[0][0] = -2;
+			punto4[0][1] = 4;
+			while (1) {
+				if (counterButton == 1) { // Interrupción externa del exti del botón SW
+					estado++;
+					giro = 1;
+				}
+				counterButton = 0;
+				if (punto1[0][0] >= 31 || punto2[0][0] >= 31
+						|| punto3[0][0] >= 31 || punto4[0][0] >= 31) {
+					break;
+				} else if (estado == 0 || punto1[0][0] <= 1) {
+					if (joystick[1] < 100 && punto1[0][1] > 0
+							&& punto1[0][0] > 1) {
+						if ((matriz[punto1[0][0]][punto1[0][1] - 1] == 0)
+								&& (matriz[punto4[0][0]][punto4[0][1] - 1] == 0)) {
+							delay_ms(200);
+							matriz[punto1[0][0]][punto1[0][1]] = 0;
+							matriz[punto2[0][0]][punto2[0][1]] = 0;
+							matriz[punto3[0][0]][punto3[0][1]] = 0;
+							matriz[punto4[0][0]][punto4[0][1]] = 0;
+
+							punto1[0][1] = punto1[0][1] - 1;
+							punto2[0][1] = punto2[0][1] - 1;
+							punto3[0][1] = punto3[0][1] - 1;
+							punto4[0][1] = punto4[0][1] - 1;
+
+							matriz[punto1[0][0]][punto1[0][1]] = 1;
+							matriz[punto2[0][0]][punto2[0][1]] = 1;
+							matriz[punto3[0][0]][punto3[0][1]] = 1;
+							matriz[punto4[0][0]][punto4[0][1]] = 1;
+						}
+					}
+					/*  Movimiento joystick hacia el lado derecho de la matriz */
+					if (joystick[1] > 4000 && punto3[0][1] < 7
+							&& punto1[0][0] > 1) {
+						if ((matriz[punto2[0][0]][punto2[0][1] + 1] == 0)
+								&& (matriz[punto3[0][0]][punto3[0][1] + 1] == 0)) {
+							delay_ms(200);
+							matriz[punto1[0][0]][punto1[0][1]] = 0;
+							matriz[punto2[0][0]][punto2[0][1]] = 0;
+							matriz[punto3[0][0]][punto3[0][1]] = 0;
+							matriz[punto4[0][0]][punto4[0][1]] = 0;
+
+							punto1[0][1] = punto1[0][1] + 1;
+							punto2[0][1] = punto2[0][1] + 1;
+							punto3[0][1] = punto3[0][1] + 1;
+							punto4[0][1] = punto4[0][1] + 1;
+
+							matriz[punto1[0][0]][punto1[0][1]] = 1;
+							matriz[punto2[0][0]][punto2[0][1]] = 1;
+							matriz[punto3[0][0]][punto3[0][1]] = 1;
+							matriz[punto4[0][0]][punto4[0][1]] = 1;
+						}
+
+					} else {
+						int test = movimientoS(punto1, punto2, punto3, punto4,
+								matriz);
+						if (test == 1) {
+							delay_ms(delay);
+							traducir(matriz);
+						} else {
+							break;
+						}
+					}
+					estado = 0;
+				} else if (estado == 1 && punto1[0][0] > 1) {
+					if (giro == 1
+							&& (matriz[punto4[0][0]][punto4[0][1] - 1] == 0)
+							&& (matriz[punto4[0][0] - 1][punto4[0][1] - 1] == 0)) {
+						matriz[punto1[0][0]][punto1[0][1]] = 0;
+						matriz[punto3[0][0]][punto3[0][1]] = 0;
+
+						punto1[0][1] = punto1[0][1] + 1;
+						punto2[0][0] = punto2[0][0] - 1;
+						punto2[0][1] = punto2[0][1] - 1;
+						punto3[0][1] = punto3[0][1] - 1;
+						punto4[0][0] = punto4[0][0] - 1;
+						punto4[0][1] = punto4[0][1] - 1;
+
+						matriz[punto2[0][0]][punto2[0][1]] = 1;
+						matriz[punto4[0][0]][punto4[0][1]] = 1;
+						traducir(matriz);
+						giro = 0;
+					}
+					if (giro == 0) {
+						if (joystick[1] < 100 && punto1[0][1] > 0
+								&& punto2[0][1] > 0) {
+							if (matriz[punto2[0][0]][punto2[0][1] - 1] == 0) {
+								delay_ms(200);
+								matriz[punto1[0][0]][punto1[0][1]] = 0;
+								matriz[punto2[0][0]][punto2[0][1]] = 0;
+								matriz[punto3[0][0]][punto3[0][1]] = 0;
+								matriz[punto4[0][0]][punto4[0][1]] = 0;
+
+								punto1[0][1] = punto1[0][1] - 1;
+								punto2[0][1] = punto2[0][1] - 1;
+								punto3[0][1] = punto3[0][1] - 1;
+								punto4[0][1] = punto4[0][1] - 1;
+
+								matriz[punto1[0][0]][punto1[0][1]] = 1;
+								matriz[punto2[0][0]][punto2[0][1]] = 1;
+								matriz[punto3[0][0]][punto3[0][1]] = 1;
+								matriz[punto4[0][0]][punto4[0][1]] = 1;
+							}
+						}
+						/*  Movimiento joystick hacia el lado derecho de la matriz */
+						if (joystick[1] > 4000 && punto1[0][1] < 7) {
+							if (matriz[punto1[0][0]][punto1[0][1] + 1] == 0) {
+								delay_ms(200);
+								matriz[punto1[0][0]][punto1[0][1]] = 0;
+								matriz[punto2[0][0]][punto2[0][1]] = 0;
+								matriz[punto3[0][0]][punto3[0][1]] = 0;
+								matriz[punto4[0][0]][punto4[0][1]] = 0;
+
+								punto1[0][1] = punto1[0][1] + 1;
+								punto2[0][1] = punto2[0][1] + 1;
+								punto3[0][1] = punto3[0][1] + 1;
+								punto4[0][1] = punto4[0][1] + 1;
+
+								matriz[punto1[0][0]][punto1[0][1]] = 1;
+								matriz[punto2[0][0]][punto2[0][1]] = 1;
+								matriz[punto3[0][0]][punto3[0][1]] = 1;
+								matriz[punto4[0][0]][punto4[0][1]] = 1;
+							}
+
+						} else {
+							int test = movimientoSGiro1(punto1, punto2, punto3,
+									punto4, matriz);
+							if (test == 1) {
+								delay_ms(delay);
+								traducir(matriz);
+							} else {
+								break;
+							}
+						}
+					} else {
+						estado--;
+					}
+				} else if (estado == 2 && punto1[0][0] > 1 && punto1[0][1] > 0
+						&& punto1[0][1] < 7) {
+					if (giro == 1
+							&& (matriz[punto3[0][0] + 1][punto3[0][1] - 1] == 0)
+							&& (matriz[punto3[0][0]][punto3[0][1] + 1] == 0)) {
+						matriz[punto2[0][0]][punto2[0][1]] = 0;
+						matriz[punto4[0][0]][punto4[0][1]] = 0;
+
+						punto1[0][1] = punto1[0][1] - 1;
+						punto2[0][0] = punto2[0][0] + 1;
+						punto2[0][1] = punto2[0][1] + 1;
+						punto3[0][1] = punto3[0][1] + 1;
+						punto4[0][0] = punto4[0][0] + 1;
+						punto4[0][1] = punto4[0][1] + 1;
+
+						matriz[punto1[0][0]][punto1[0][1]] = 1;
+						matriz[punto3[0][0]][punto3[0][1]] = 1;
+						traducir(matriz);
+						giro = 0;
+					}
+					if (giro == 0) {
+						estado = 0;
+					} else {
+						estado--;
+					}
+				} else {
+					estado--;
+					giro = 0;
+				}
+			}
+
+		}
+
+		if (figura == 6) { //Cae Z
+			estado = 0;
+			punto1[0][0] = -1;
+			punto1[0][1] = 4;
+			punto2[0][0] = -1;
+			punto2[0][1] = 5;
+			punto3[0][0] = -2;
+			punto3[0][1] = 3;
+			punto4[0][0] = -2;
+			punto4[0][1] = 4;
+			while (1) {
+				if (counterButton == 1) { // Interrupción externa del exti del botón SW
+					estado++;
+					giro = 1;
+				}
+				counterButton = 0;
+				if (punto1[0][0] >= 31 || punto2[0][0] >= 31
+						|| punto3[0][0] >= 31 || punto4[0][0] >= 31) {
+					break;
+				} else if (estado == 0 || punto1[0][0] <= 1) {
+					if (joystick[1] < 100 && punto3[0][1] > 0
+							&& punto1[0][0] > 1) {
+						if ((matriz[punto1[0][0]][punto1[0][1] - 1] == 0)
+								&& (matriz[punto3[0][0]][punto3[0][1] - 1] == 0)) {
+							delay_ms(200);
+							matriz[punto1[0][0]][punto1[0][1]] = 0;
+							matriz[punto2[0][0]][punto2[0][1]] = 0;
+							matriz[punto3[0][0]][punto3[0][1]] = 0;
+							matriz[punto4[0][0]][punto4[0][1]] = 0;
+
+							punto1[0][1] = punto1[0][1] - 1;
+							punto2[0][1] = punto2[0][1] - 1;
+							punto3[0][1] = punto3[0][1] - 1;
+							punto4[0][1] = punto4[0][1] - 1;
+
+							matriz[punto1[0][0]][punto1[0][1]] = 1;
+							matriz[punto2[0][0]][punto2[0][1]] = 1;
+							matriz[punto3[0][0]][punto3[0][1]] = 1;
+							matriz[punto4[0][0]][punto4[0][1]] = 1;
+						}
+					}
+					/*  Movimiento joystick hacia el lado derecho de la matriz */
+					if (joystick[1] > 4000 && punto2[0][1] < 7
+							&& punto1[0][0] > 1) {
+						if ((matriz[punto2[0][0]][punto2[0][1] + 1] == 0)
+								&& (matriz[punto4[0][0]][punto4[0][1] + 1] == 0)) {
+							delay_ms(200);
+							matriz[punto1[0][0]][punto1[0][1]] = 0;
+							matriz[punto2[0][0]][punto2[0][1]] = 0;
+							matriz[punto3[0][0]][punto3[0][1]] = 0;
+							matriz[punto4[0][0]][punto4[0][1]] = 0;
+
+							punto1[0][1] = punto1[0][1] + 1;
+							punto2[0][1] = punto2[0][1] + 1;
+							punto3[0][1] = punto3[0][1] + 1;
+							punto4[0][1] = punto4[0][1] + 1;
+
+							matriz[punto1[0][0]][punto1[0][1]] = 1;
+							matriz[punto2[0][0]][punto2[0][1]] = 1;
+							matriz[punto3[0][0]][punto3[0][1]] = 1;
+							matriz[punto4[0][0]][punto4[0][1]] = 1;
+						}
+
+					} else {
+						int test = movimientoZ(punto1, punto2, punto3, punto4,
+								matriz);
+						if (test == 1) {
+							delay_ms(delay);
+							traducir(matriz);
+						} else {
+							break;
+						}
+					}
+					estado = 0;
+				} else if (estado == 1 && punto1[0][0] > 1) {
+					if (giro == 1
+							&& (matriz[punto4[0][0]][punto4[0][1] + 1] == 0)
+							&& (matriz[punto4[0][0] - 1][punto4[0][1] + 1] == 0)) {
+						matriz[punto2[0][0]][punto2[0][1]] = 0;
+						matriz[punto3[0][0]][punto3[0][1]] = 0;
+
+						punto2[0][0] = punto2[0][0] - 1;
+						punto3[0][1] = punto3[0][1] + 1;
+						punto4[0][0] = punto4[0][0] - 1;
+						punto4[0][1] = punto4[0][1] + 1;
+
+						matriz[punto2[0][0]][punto2[0][1]] = 1;
+						matriz[punto4[0][0]][punto4[0][1]] = 1;
+						traducir(matriz);
+						giro = 0;
+					}
+					if (giro == 0) {
+						if (joystick[1] < 100 && punto1[0][1] > 0
+								&& punto1[0][1] > 0) {
+							if (matriz[punto1[0][0]][punto1[0][1] - 1] == 0
+									&& matriz[punto3[0][0]][punto3[0][1] - 1]
+											== 0) {
+								delay_ms(200);
+								matriz[punto1[0][0]][punto1[0][1]] = 0;
+								matriz[punto2[0][0]][punto2[0][1]] = 0;
+								matriz[punto3[0][0]][punto3[0][1]] = 0;
+								matriz[punto4[0][0]][punto4[0][1]] = 0;
+
+								punto1[0][1] = punto1[0][1] - 1;
+								punto2[0][1] = punto2[0][1] - 1;
+								punto3[0][1] = punto3[0][1] - 1;
+								punto4[0][1] = punto4[0][1] - 1;
+
+								matriz[punto1[0][0]][punto1[0][1]] = 1;
+								matriz[punto2[0][0]][punto2[0][1]] = 1;
+								matriz[punto3[0][0]][punto3[0][1]] = 1;
+								matriz[punto4[0][0]][punto4[0][1]] = 1;
+							}
+						}
+						/*  Movimiento joystick hacia el lado derecho de la matriz */
+						if (joystick[1] > 4000 && punto2[0][1] < 7) {
+							if (matriz[punto2[0][0]][punto2[0][1] + 1] == 0
+									&& matriz[punto4[0][0]][punto4[0][1] + 1]
+											== 0) {
+								delay_ms(200);
+								matriz[punto1[0][0]][punto1[0][1]] = 0;
+								matriz[punto2[0][0]][punto2[0][1]] = 0;
+								matriz[punto3[0][0]][punto3[0][1]] = 0;
+								matriz[punto4[0][0]][punto4[0][1]] = 0;
+
+								punto1[0][1] = punto1[0][1] + 1;
+								punto2[0][1] = punto2[0][1] + 1;
+								punto3[0][1] = punto3[0][1] + 1;
+								punto4[0][1] = punto4[0][1] + 1;
+
+								matriz[punto1[0][0]][punto1[0][1]] = 1;
+								matriz[punto2[0][0]][punto2[0][1]] = 1;
+								matriz[punto3[0][0]][punto3[0][1]] = 1;
+								matriz[punto4[0][0]][punto4[0][1]] = 1;
+							}
+
+						} else {
+							int test = movimientoSGiro1(punto1, punto2, punto3,
+									punto4, matriz);
+							if (test == 1) {
+								delay_ms(delay);
+								traducir(matriz);
+							} else {
+								break;
+							}
+						}
+					} else {
+						estado--;
+					}
+				} else if (estado == 2 && punto1[0][0] > 1
+						&& punto1[0][1] > 0) {
+					if (giro == 1
+							&& (matriz[punto3[0][0]][punto3[0][1] - 1] == 0)
+							&& (matriz[punto3[0][0] + 1][punto3[0][1] + 1] == 0)) {
+						matriz[punto2[0][0]][punto2[0][1]] = 0;
+						matriz[punto4[0][0]][punto4[0][1]] = 0;
+
+						punto2[0][0] = punto2[0][0] + 1;
+						punto3[0][1] = punto3[0][1] - 1;
+						punto4[0][0] = punto4[0][0] + 1;
+						punto4[0][1] = punto4[0][1] - 1;
+
+						matriz[punto2[0][0]][punto2[0][1]] = 1;
+						matriz[punto3[0][0]][punto3[0][1]] = 1;
+						traducir(matriz);
+						giro = 0;
+					}
+					if (giro == 0) {
+						estado = 0;
+					} else {
+						estado--;
+					}
+				} else {
+					estado--;
+					giro = 0;
+				}
+			}
+
+		}
+		//Fin del juego, se verifica que la fila de arriba esté vacía, o si no se finaliza el juego
+		if (matriz[0][0] || matriz[0][1] || matriz[0][2] || matriz[0][3]
+				|| matriz[0][4] || matriz[0][5] || matriz[0][6]
+				|| matriz[0][7]) {
+			end(matriz);
+			traducir(matriz);
+			break;
+		}
 	}
-//	while (1) {
-//	if(rxData != '\0'){
-//			writeChar(&handlerCommTerminal, rxData);
-//			switch(rxData){
-//			case 'k':{
-//				writeMsg(&handlerCommTerminal, "dummy message\n");
-//				break;
-//			}
-//			case 'r':{
-//				randomSeed = 0x1F & (TIM3->CNT);
-//				srand(randomSeed);
-//				(void)rand();
-//				randomNumber = rand();
-//				sprintf(bufferData, "randomNumber = %u \n", randomNumber);
-//				writeMsg(&handlerCommTerminal, bufferData);
-//				break;
-//			}
-//			}
-//			rxData = '\0';
-//		}
-//		//AQUI ESTARA LA VERIFICACION SI SE QUITA TODA UNA FILA PORQUE ESTA COMPLETA
-//
-//		int figura = rand() % 7;
-//		if (figura == 0) { //Cae T
-//			punto1[0][0] = -1;
-//			punto1[0][1] = 3;
-//			punto2[0][0] = -1;
-//			punto2[0][1] = 4;
-//			punto3[0][0] = -1;
-//			punto3[0][1] = 5;
-//			punto4[0][0] = -3;
-//			punto4[0][1] = 4;
-//			while (1) {
-//				int test = movimientoTGiro2(punto1, punto2, punto3, punto4,
-//						matriz);
-//				if (test == 1) {
-//					delay_ms(500);
-//					traducir(matriz);
-//				} else {
-//					break;
-//				}
-//			}
-//		}
-//
-//		if (figura == 1) { //Cae Palito
-//			punto1[0][0] = -1;
-//			punto1[0][1] = 3;
-//			punto2[0][0] = -3;
-//			punto2[0][1] = 3;
-//			punto3[0][0] = -4;
-//			punto3[0][1] = 3;
-//			punto4[0][0] = -5;
-//			punto4[0][1] = 3;
-//			while (1) {
-//				int test = movimientoPalito(punto1, punto2, punto3, punto4,
-//						matriz);
-//				if (test == 1) {
-//					delay_ms(500);
-//					traducir(matriz);
-//				} else {
-//					break;
-//				}
-//			}
-//
-//		}
-//
-//		if (figura == 2) { //Cae L invertida
-//			punto1[0][0] = -1;
-//			punto1[0][1] = 3;
-//			punto2[0][0] = -1;
-//			punto2[0][1] = 4;
-//			punto3[0][0] = -3;
-//			punto3[0][1] = 4;
-//			punto4[0][0] = -4;
-//			punto4[0][1] = 4;
-//			while (1) {
-//				int test = movimientoLInvertida(punto1, punto2, punto3, punto4, matriz);
-//				if (test == 1) {
-//					delay_ms(500);
-//					traducir(matriz);
-//				} else {
-//					break;
-//				}
-//			}
-//		}
-//		if (figura == 3) { //Cae L
-//			punto1[0][0] = -1;
-//			punto1[0][1] = 3;
-//			punto2[0][0] = -1;
-//			punto2[0][1] = 4;
-//			punto3[0][0] = -3;
-//			punto3[0][1] = 3;
-//			punto4[0][0] = -4;
-//			punto4[0][1] = 3;
-//			while (1) {
-//				int test = movimientoL(punto1, punto2, punto3, punto4, matriz);
-//				if (test == 1) {
-//					delay_ms(500);
-//					traducir(matriz);
-//				} else {
-//					break;
-//				}
-//			}
-//		}
-//
-//		if (figura == 4) { //Cae Cubo
-//			punto1[0][0] = -1;
-//			punto1[0][1] = 3;
-//			punto2[0][0] = -1;
-//			punto2[0][1] = 4;
-//			punto3[0][0] = -3;
-//			punto3[0][1] = 3;
-//			punto4[0][0] = -3;
-//			punto4[0][1] = 4;
-//			while (1) {
-//				int test = movimientoCubo(punto1, punto2, punto3, punto4,
-//						matriz);
-//				if (test == 1) {
-//					delay_ms(500);
-//					traducir(matriz);
-//				} else {
-//					break;
-//				}
-//			}
-//		}
-//
-//		if (figura == 5) { //Cae S
-//			punto1[0][0] = -1;
-//			punto1[0][1] = 4;
-//			punto2[0][0] = -1;
-//			punto2[0][1] = 5;
-//			punto3[0][0] = -2;
-//			punto3[0][1] = 3;
-//			punto4[0][0] = -2;
-//			punto4[0][1] = 4;
-//			while (1) {
-//				int test = movimientoS(punto1, punto2, punto3, punto4, matriz);
-//				if (test == 1) {
-//					delay_ms(500);
-//					traducir(matriz);
-//				} else {
-//					break;
-//				}
-//			}
-//		}
-//
-//		if (figura == 6) { //Cae Z
-//			punto1[0][0] = -1;
-//			punto1[0][1] = 4;
-//			punto2[0][0] = -1;
-//			punto2[0][1] = 5;
-//			punto3[0][0] = -2;
-//			punto3[0][1] = 3;
-//			punto4[0][0] = -2;
-//			punto4[0][1] = 4;
-//			while (1) {
-//				int test = movimientoZ(punto1, punto2, punto3, punto4, matriz);
-//				if (test == 1) {
-//					delay_ms(500);
-//					traducir(matriz);
-//				} else {
-//					break;
-//				}
-//			}
-//		}
-//		//AQUI ESTARA LA VERIFICACION SI SE PIERDE EL JUEGO
-//
-//	}
 	return 0;
 }
 
-void mover(int punto[1][2], int matriz[32][8]) {
-	if (matriz[punto[0][0] + 1][punto[0][1]] == 0) {
-		if (punto[0][0] >= 0) {
-			matriz[punto[0][0]][punto[0][1]] = 0;
-			matriz[punto[0][0] + 1][punto[0][1]] = 1;
-			punto[0][0] = punto[0][0] + 1;
-		} else {
-			matriz[punto[0][0] + 1][punto[0][1]] = 1;
-			punto[0][0] = punto[0][0] + 1;
+void tetris(int matriz[32][8], uint8_t fila) {
+	for (int i = 0; i < 8; i++) {
+		matriz[fila][i] = 0;
+	}
+	traducir(matriz);
+	delay_ms(1000);
+	for (int i = 32; i > 0; i--) {
+		if (i <= fila) {
+			for (int j = 0; j < 8; j++) {
+				matriz[i][j] = matriz[i - 1][j];
+			}
+		}
+
+	}
+}
+void inicio(int matriz[32][8]){
+	matriz[1][6] = 1;
+	matriz[2][6] = 1;
+	matriz[3][6] = 1;
+	matriz[4][6] = 1;
+	matriz[5][6] = 1;
+
+	matriz[3][1] = 1;
+	matriz[3][2] = 1;
+	matriz[3][3] = 1;
+	matriz[3][4] = 1;
+	matriz[3][5] = 1;
+	matriz[2][6] = 1;
+
+	matriz[7][1] = 1;
+	matriz[7][2] = 1;
+	matriz[7][3] = 1;
+	matriz[7][4] = 1;
+	matriz[7][5] = 1;
+	matriz[7][6] = 1;
+
+	matriz[8][1] = 1;
+	matriz[9][1] = 1;
+	matriz[10][1] = 1;
+	matriz[8][4] = 1;
+	matriz[9][4] = 1;
+	matriz[10][4] = 1;
+	matriz[8][6] = 1;
+	matriz[9][6] = 1;
+	matriz[10][6] = 1;
+
+	matriz[12][6] = 1;
+	matriz[13][6] = 1;
+	matriz[14][6] = 1;
+	matriz[15][6] = 1;
+	matriz[16][6] = 1;
+
+	matriz[14][1] = 1;
+	matriz[14][2] = 1;
+	matriz[14][3] = 1;
+	matriz[14][4] = 1;
+	matriz[14][5] = 1;
+
+	matriz[18][1] = 1;
+	matriz[18][2] = 1;
+	matriz[18][3] = 1;
+	matriz[18][4] = 1;
+	matriz[18][5] = 1;
+	matriz[18][6] = 1;
+
+	matriz[19][6] = 1;
+	matriz[20][6] = 1;
+	matriz[21][5] = 1;
+	matriz[21][4] = 1;
+	matriz[20][3] = 1;
+	matriz[19][3] = 1;
+	matriz[20][2] = 1;
+	matriz[21][1] = 1;
+
+	matriz[23][6] = 1;
+	matriz[23][1] = 1;
+	matriz[25][6] = 1;
+	matriz[25][1] = 1;
+
+	matriz[24][1] = 1;
+	matriz[24][2] = 1;
+	matriz[24][3] = 1;
+	matriz[24][4] = 1;
+	matriz[24][5] = 1;
+	matriz[24][6] = 1;
+
+	matriz[27][1] = 1;
+	matriz[27][3] = 1;
+	matriz[27][4] = 1;
+	matriz[27][5] = 1;
+	matriz[27][6] = 1;
+
+	matriz[28][1] = 1;
+	matriz[28][3] = 1;
+	matriz[28][6] = 1;
+
+	matriz[29][1] = 1;
+	matriz[29][3] = 1;
+	matriz[29][6] = 1;
+
+	matriz[30][1] = 1;
+	matriz[28][1] = 1;
+	matriz[30][2] = 1;
+	matriz[30][3] = 1;
+	matriz[30][6] = 1;
+
+	traducir(matriz);
+	delay_ms(3000);
+	for(int i=0; i<32;i++){
+		for(int j=0;j<8;j++){
+			matriz[i][j] = 0;
 		}
 	}
+}
+void score(uint8_t puntos){
+	int puntaje[32][8] = {0};
 
+	//score
+	// S
+	puntaje[0][3] = 1;
+	puntaje[0][4] = 1;
+	puntaje[1][2] = 1;
+	puntaje[1][3] = 1;
+	puntaje[2][4] = 1;
+	puntaje[3][2] = 1;
+	puntaje[3][4] = 1;
+	puntaje[3][3] = 1;
+	puntaje[3][2] = 1;
+
+	//C
+	puntaje[5][3] = 1;
+	puntaje[5][4] = 1;
+	puntaje[5][2] = 1;
+	puntaje[6][2] = 1;
+	puntaje[7][2] = 1;
+	puntaje[8][2] = 1;
+	puntaje[8][3] = 1;
+	puntaje[8][4] = 1;
+	// O
+	puntaje[9][3] = 1;
+	puntaje[9][4] = 1;
+	puntaje[10][2] = 1;
+	puntaje[10][5] = 1;
+	puntaje[11][2] = 1;
+	puntaje[11][5] = 1;
+	puntaje[12][3] = 1;
+	puntaje[12][4] = 1;
+	//R
+	puntaje[13][2] = 1;
+	puntaje[13][3] = 1;
+	puntaje[13][4] = 1;
+	puntaje[14][2] = 1;
+	puntaje[14][4] = 1;
+	puntaje[15][2] = 1;
+	puntaje[15][3] = 1;
+	puntaje[16][2] = 1;
+	puntaje[16][4] = 1;
+	//E
+	puntaje[18][2] = 1;
+	puntaje[18][3] = 1;
+	puntaje[18][4] = 1;
+	puntaje[19][2] = 1;
+	puntaje[19][3] = 1;
+	puntaje[19][4] = 1;
+	puntaje[20][2] = 1;
+	puntaje[21][2] = 1;
+	puntaje[21][3] = 1;
+	puntaje[21][4] = 1;
+
+	int decenas = puntos/10;
+	int unidades = puntos%10;
+
+	if(decenas == 0){
+		puntaje[25][0]=1;
+		puntaje[25][1]=1;
+		puntaje[25][2]=1;
+		puntaje[26][0]=1;
+		puntaje[27][0]=1;
+		puntaje[28][0]=1;
+		puntaje[29][0]=1;
+		puntaje[30][0]=1;
+		puntaje[30][1]=1;
+		puntaje[30][2]=1;
+		puntaje[29][2]=1;
+		puntaje[28][2]=1;
+		puntaje[27][2]=1;
+		puntaje[26][2]=1;
+	}
+	if(decenas == 1){
+		puntaje[25][1]=1;
+		puntaje[26][0]=1;
+		puntaje[26][1]=1;
+		puntaje[27][1]=1;
+		puntaje[28][1]=1;
+		puntaje[29][1]=1;
+		puntaje[30][0]=1;
+		puntaje[30][1]=1;
+		puntaje[30][2]=1;
+
+	}
+	if(decenas == 2){
+		puntaje[25][1]=1;
+		puntaje[26][0]=1;
+		puntaje[26][2]=1;
+		puntaje[27][2]=1;
+		puntaje[28][1]=1;
+		puntaje[29][0]=1;
+		puntaje[30][0]=1;
+		puntaje[30][1]=1;
+		puntaje[30][2]=1;
+	}
+	if(decenas == 3){
+		puntaje[25][0]=1;
+		puntaje[25][1]=1;
+		puntaje[25][2]=1;
+		puntaje[26][2]=1;
+		puntaje[27][2]=1;
+		puntaje[28][2]=1;
+		puntaje[29][2]=1;
+		puntaje[30][2]=1;
+		puntaje[30][1]=1;
+		puntaje[30][0]=1;
+		puntaje[27][1]=1;
+		puntaje[27][0]=1;
+	}
+	if(decenas == 4){
+		puntaje[25][0]=1;
+		puntaje[25][2]=1;
+		puntaje[26][0]=1;
+		puntaje[27][0]=1;
+		puntaje[27][1]=1;
+		puntaje[26][2]=1;
+		puntaje[27][2]=1;
+		puntaje[28][2]=1;
+		puntaje[29][2]=1;
+		puntaje[30][2]=1;
+	}
+	if(decenas == 5){
+		puntaje[25][0]=1;
+		puntaje[25][1]=1;
+		puntaje[25][2]=1;
+		puntaje[26][0]=1;
+		puntaje[27][1]=1;
+		puntaje[28][2]=1;
+		puntaje[29][2]=1;
+		puntaje[30][1]=1;
+		puntaje[30][0]=1;
+	}
+	if(decenas == 6){
+		puntaje[25][0]=1;
+		puntaje[25][1]=1;
+		puntaje[25][2]=1;
+		puntaje[26][0]=1;
+		puntaje[27][0]=1;
+		puntaje[28][0]=1;
+		puntaje[28][1]=1;
+		puntaje[28][2]=1;
+		puntaje[29][0]=1;
+		puntaje[29][2]=1;
+		puntaje[30][1]=1;
+		puntaje[30][0]=1;
+		puntaje[30][2]=1;
+	}
+	if(decenas == 7){
+		puntaje[25][0]=1;
+		puntaje[25][1]=1;
+		puntaje[25][2]=1;
+		puntaje[26][2]=1;
+		puntaje[27][2]=1;
+		puntaje[28][2]=1;
+		puntaje[28][1]=1;
+		puntaje[28][0]=1;
+		puntaje[29][2]=1;
+		puntaje[30][2]=1;
+	}
+	if(decenas == 8){
+		puntaje[25][0]=1;
+		puntaje[25][1]=1;
+		puntaje[25][2]=1;
+		puntaje[26][0]=1;
+		puntaje[26][2]=1;
+		puntaje[27][0]=1;
+		puntaje[27][1]=1;
+		puntaje[27][2]=1;
+		puntaje[28][0]=1;
+		puntaje[28][2]=1;
+		puntaje[29][0]=1;
+		puntaje[29][2]=1;
+		puntaje[30][0]=1;
+		puntaje[30][1]=1;
+		puntaje[30][2]=1;
+	}
+	if(decenas == 9){
+		puntaje[25][0]=1;
+		puntaje[25][1]=1;
+		puntaje[25][2]=1;
+		puntaje[26][0]=1;
+		puntaje[26][2]=1;
+		puntaje[27][0]=1;
+		puntaje[27][1]=1;
+		puntaje[27][2]=1;
+		puntaje[28][2]=1;
+		puntaje[29][2]=1;
+		puntaje[30][0]=1;
+		puntaje[30][1]=1;
+		puntaje[30][2]=1;
+	}
+	if(unidades == 0){
+		puntaje[25][5]=1;
+		puntaje[25][6]=1;
+		puntaje[25][7]=1;
+		puntaje[26][5]=1;
+		puntaje[27][5]=1;
+		puntaje[28][5]=1;
+		puntaje[29][5]=1;
+		puntaje[30][5]=1;
+		puntaje[26][7]=1;
+		puntaje[27][7]=1;
+		puntaje[28][7]=1;
+		puntaje[29][7]=1;
+		puntaje[30][6]=1;
+		puntaje[30][7]=1;
+	}
+	if(unidades == 1){
+		puntaje[25][6]=1;
+		puntaje[26][5]=1;
+		puntaje[26][6]=1;
+		puntaje[27][6]=1;
+		puntaje[28][6]=1;
+		puntaje[29][6]=1;
+		puntaje[30][5]=1;
+		puntaje[30][6]=1;
+		puntaje[30][7]=1;
+	}
+	if(unidades == 2){
+		puntaje[25][6]=1;
+		puntaje[26][5]=1;
+		puntaje[26][7]=1;
+		puntaje[27][7]=1;
+		puntaje[28][6]=1;
+		puntaje[29][5]=1;
+		puntaje[30][5]=1;
+		puntaje[30][6]=1;
+		puntaje[30][7]=1;
+	}
+	if(unidades == 3){
+		puntaje[25][5]=1;
+		puntaje[25][6]=1;
+		puntaje[25][7]=1;
+		puntaje[26][7]=1;
+		puntaje[27][7]=1;
+		puntaje[28][7]=1;
+		puntaje[29][7]=1;
+		puntaje[30][7]=1;
+		puntaje[30][6]=1;
+		puntaje[30][5]=1;
+		puntaje[27][6]=1;
+		puntaje[27][5]=1;
+	}
+	if(unidades == 4){
+		puntaje[25][5]=1;
+		puntaje[25][7]=1;
+		puntaje[26][5]=1;
+		puntaje[27][5]=1;
+		puntaje[27][6]=1;
+		puntaje[26][7]=1;
+		puntaje[27][7]=1;
+		puntaje[28][7]=1;
+		puntaje[29][7]=1;
+		puntaje[30][7]=1;
+	}
+	if(unidades == 5){
+		puntaje[25][5]=1;
+		puntaje[25][6]=1;
+		puntaje[25][7]=1;
+		puntaje[26][5]=1;
+		puntaje[27][6]=1;
+		puntaje[28][7]=1;
+		puntaje[29][7]=1;
+		puntaje[30][6]=1;
+		puntaje[30][5]=1;
+	}
+	if(unidades == 6){
+		puntaje[25][5]=1;
+		puntaje[25][6]=1;
+		puntaje[25][7]=1;
+		puntaje[26][5]=1;
+		puntaje[27][5]=1;
+		puntaje[28][5]=1;
+		puntaje[28][6]=1;
+		puntaje[28][7]=1;
+		puntaje[29][5]=1;
+		puntaje[29][7]=1;
+		puntaje[30][5]=1;
+		puntaje[30][6]=1;
+		puntaje[30][7]=1;
+	}
+	if(unidades == 7){
+		puntaje[25][5]=1;
+		puntaje[25][6]=1;
+		puntaje[25][7]=1;
+		puntaje[26][7]=1;
+		puntaje[27][7]=1;
+		puntaje[28][7]=1;
+		puntaje[28][6]=1;
+		puntaje[28][5]=1;
+		puntaje[29][7]=1;
+		puntaje[30][7]=1;
+	}
+	if(unidades == 8){
+		puntaje[25][5]=1;
+		puntaje[25][6]=1;
+		puntaje[25][7]=1;
+		puntaje[26][5]=1;
+		puntaje[26][7]=1;
+		puntaje[27][5]=1;
+		puntaje[27][6]=1;
+		puntaje[27][7]=1;
+		puntaje[28][5]=1;
+		puntaje[28][7]=1;
+		puntaje[29][5]=1;
+		puntaje[29][7]=1;
+		puntaje[30][5]=1;
+		puntaje[30][6]=1;
+		puntaje[30][7]=1;
+	}
+	if(unidades == 9){
+		puntaje[25][5]=1;
+		puntaje[25][6]=1;
+		puntaje[25][7]=1;
+		puntaje[26][5]=1;
+		puntaje[26][7]=1;
+		puntaje[27][5]=1;
+		puntaje[27][6]=1;
+		puntaje[27][7]=1;
+		puntaje[28][7]=1;
+		puntaje[29][7]=1;
+		puntaje[30][7]=1;
+		puntaje[30][6]=1;
+		puntaje[30][5]=1;
+	}
+	traducir(puntaje);
+	delay_ms(3000);
 }
 void traducir(int matriz[32][8]) {
 	int matriz1[8][8] = { 0 };
@@ -817,7 +2670,7 @@ void traducir(int matriz[32][8]) {
 			}
 		}
 	}
-
+	// Traducir columnas a números de las matrices
 	for (int i = 0; i < 8; i++) {
 		uint8_t aux = 0;
 		for (int j = 0; j < 8; j++) {
@@ -868,10 +2721,13 @@ void BasicTimer5_Callback(void) {
 	GPIOxTooglePin(&handlerLedOK);
 
 }
+
+void callback_extInt9(void) {                     // Exti del botón
+	counterButton |= 1;	                          // Flanco de subida
+}
 void usart2Rx_Callback(void) {
-	//Leemos el valor del registro DR, donde se almacena el dato que llega.
-	//Esto además debe bajar la bandera de la interrupción
+//Leemos el valor del registro DR, donde se almacena el dato que llega.
+//Esto además debe bajar la bandera de la interrupción
 	rxData = getRXData();
 }
-
 

@@ -86,4 +86,6 @@ int movimientoZGiro1(int punto1[1][2], int punto2[1][2], int punto3[1][2],
 
 void end(int matriz[32][8]);
 
+void display7(uint8_t numero);
+
 #endif /* TETRIS_H_ */
