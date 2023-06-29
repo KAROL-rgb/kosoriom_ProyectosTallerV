@@ -8,9 +8,6 @@
 #include <stm32f4xx.h>
 #include "Tetris.h"
 
-
-
-
 int movimientoT(int punto1[1][2], int punto2[1][2], int punto3[1][2],
 		int punto4[1][2], int matriz[32][8]) {
 	if (punto1[0][0] == -1) {	//Solo se verifica la base en el primer paso
@@ -1420,4 +1417,5 @@ void end(int matriz[32][8]){
 	matriz[31][4]=1;
 
 }
+
 

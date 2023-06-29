@@ -31,14 +31,24 @@
 #include "AdcDriver.h"
 #include "Tetris.h"
 
+/****************************************** Definición de los diferentes handlers *********************************/
 GPIO_Handler_t handlerSpiSCLK = { 0 };
 GPIO_Handler_t handlerSpiMISO = { 0 };
 GPIO_Handler_t handlerSpiMOSI = { 0 };
-GPIO_Handler_t handlerSpiSS = { 0 };
+GPIO_Handler_t handlerSpiSS   = { 0 };
 BasicTimer_Handler_t handlerStateOKTimer = { 0 };
-BasicTimer_Handler_t handlerTimerRandom = { 0 };
+BasicTimer_Handler_t handlerTimerRandom  = { 0 };
 SPI_Handler_t handlerSpiPort = { 0 };
-/***************************************** Definiciones para ADC *****************************************/
+GPIO_Handler_t handlerPinTX  = { 0 };
+GPIO_Handler_t handlerPinRX  = { 0 };
+USART_Handler_t handlerCommTerminal = { 0 };
+PWM_Handler_t handlerPWM     = { 0 };
+GPIO_Handler_t handlerLedOK  = { 0 };
+GPIO_Handler_t hnadlerPinPWM = { 0 };
+GPIO_Handler_t handlerSW     = { 0 };
+BasicTimer_Handler_t handlerDelay = { 0 };
+
+/**************************************** Definiciones para el joysctick*****************************************/
 ADC_Config_t adcConfig = { 0 };
 int joystick[2] = { 0 };
 int axisX = 0;
@@ -47,44 +57,31 @@ int SW = 0;
 uint16_t adcData = 0;
 uint8_t aux = 0;
 uint8_t adcIsComplete = RESET;
+/*****************************************************************************************************************/
+EXTI_Config_t extiButton = { 0 }; // Interrupción externa
 
-GPIO_Handler_t handlerPinTX = { 0 };
-GPIO_Handler_t handlerPinRX = { 0 };
-USART_Handler_t handlerCommTerminal = { 0 };
-PWM_Handler_t handlerPWM = { 0 };
-GPIO_Handler_t handlerLedOK = { 0 };
-GPIO_Handler_t hnadlerPinPWM = { 0 };
-GPIO_Handler_t handlerSW = { 0 };
-EXTI_Config_t extiButton = { 0 };
-
-uint32_t getCounterDelay(void);
-BasicTimer_Handler_t handlerDelay = { 0 };
-uint32_t counterDelay = 0;
-uint8_t var = { 0 };
-uint16_t memoria[8];
-
-uint8_t myVariable = 42;
-uint8_t *ptr = &myVariable;
+// Definiciones para el Random
 uint16_t randomSeed;
 uint16_t randomNumber;
 
+// Definiciones para la lógica del juego
 uint8_t estado;
 uint8_t puntos;
 uint8_t giro;
 uint32_t counterButton = 0;
 
-uint8_t col = 0;
-uint8_t save = 0;
-uint8_t flag = 0;
-uint8_t rxData = 0; // Para valores random
+// Para comunicación usart
+uint8_t rxData = 0;
 char bufferData[128] = { 0 };
+
+/* Definición de las funciones del programa a utilizar */
 void tetris(int matriz[32][8], uint8_t fila);
 void score(uint8_t puntos);
-int test = 0;
-/* Definición de las funciones del programa a utilizar */
 void inicio(int matriz[32][8]);
+int test = 0;
+
 void initSystem(void) {
-//	config_SysTick_ms(200);
+
 	handlerLedOK.pGPIOx = GPIOA;
 	handlerLedOK.GPIO_PinConfig.GPIO_PinNumber = PIN_5;
 	handlerLedOK.GPIO_PinConfig.GPIO_PinMode = GPIO_MODE_OUT;
@@ -102,13 +99,12 @@ void initSystem(void) {
 	handlerStateOKTimer.TIMx_Config.TIMx_period = 2500;
 	handlerStateOKTimer.TIMx_Config.TIMx_interruptEnable = ENABLE;
 	BasicTimer_Config(&handlerStateOKTimer);
-
+	/* Configuración ADC*/
 	adcConfig.multiChannels[0] = ADC_CHANNEL_0;
 	adcConfig.multiChannels[1] = ADC_CHANNEL_1;
 	adcConfig.dataAlignment = ADC_ALIGNMENT_RIGHT;
 	adcConfig.resolution = ADC_RESOLUTION_12_BIT;
-	adcConfig.samplingPeriod = ADC_SAMPLING_PERIOD_84_CYCLES
-	;
+	adcConfig.samplingPeriod = ADC_SAMPLING_PERIOD_84_CYCLES;
 	adcConfig.adcEvent = 5;
 	adcConfig.typeEvent = 1;
 	//Se carga la configuración del ADC
@@ -134,6 +130,17 @@ void initSystem(void) {
 
 	GPIO_Config(&hnadlerPinPWM);
 
+	handlerPWM.ptrTIMx = TIM2;
+	handlerPWM.config.channel = PWM_CHANNEL_3;
+	handlerPWM.config.duttyCicle = 33;
+	handlerPWM.config.periodo = 60;
+	handlerPWM.config.prescaler = 100;
+
+	// Activar señal
+	pwm_Config(&handlerPWM);
+	enableOutput(&handlerPWM);
+	startPwmSignal(&handlerPWM);
+
 	/* Configuración del botón, Pin PA9 (SW) */
 	handlerSW.pGPIOx = GPIOA;
 	handlerSW.GPIO_PinConfig.GPIO_PinNumber = PIN_9;
@@ -146,16 +153,6 @@ void initSystem(void) {
 	extiButton.edgeType = EXTERNAL_INTERRUPT_RISING_EDGE;
 	extInt_Config(&extiButton);
 
-	handlerPWM.ptrTIMx = TIM2;
-	handlerPWM.config.channel = PWM_CHANNEL_3;
-	handlerPWM.config.duttyCicle = 33;
-	handlerPWM.config.periodo = 60;
-	handlerPWM.config.prescaler = 100;
-
-	// Activar señal
-	pwm_Config(&handlerPWM);
-	enableOutput(&handlerPWM);
-	startPwmSignal(&handlerPWM);
 }
 
 void Serial_Configuration(void) {
@@ -241,6 +238,7 @@ void SPI_Configuration(void) {
 	handlerSpiPort.SPI_slavePin = handlerSpiSS;
 	spi_config(handlerSpiPort);
 
+	/* Inicialización de la matriz */
 	MatrixLed_writeData(0x09, 0x00); // Desactivar decodificación BCD
 	MatrixLed_writeData(0x09, 0x00); // Desactivar decodificación BCD
 	MatrixLed_writeData(0x09, 0x00); // Desactivar decodificación BCD
@@ -396,26 +394,6 @@ uint8_t MatrixLedMod4(uint8_t digit, uint8_t seg) {
 	return seg;
 }
 
-void timerDelay_Configuration(void) {
-
-	/*
-	 * Configuramos el timer
-	 */
-	handlerDelay.ptrTIMx = TIM5;
-	handlerDelay.TIMx_Config.TIMx_mode = BTIMER_MODE_UP;
-	handlerDelay.TIMx_Config.TIMx_speed = BTIMER_SPEED_10us;
-	handlerDelay.TIMx_Config.TIMx_period = 100;
-	BasicTimer_Config(&handlerDelay);
-}
-uint32_t getCounterDelay(void) {
-
-	return counterDelay;
-}
-
-void displayNumber(uint8_t matrix, uint8_t number) {
-	MatrixLed_writeData(matrix, number);
-}
-
 void clean(void) {
 	MatrixLedMod1(0x01, 0b00000000);
 	MatrixLedMod1(0x02, 0b00000000);
@@ -457,7 +435,6 @@ void clean(void) {
 
 int main(void) {
 
-
 	initSystem();
 	config_SysTick_ms(0);
 	SPI_Configuration();
@@ -465,10 +442,12 @@ int main(void) {
 	clean();
 	adcComplete_Callback();
 	srand(randomSeed);
+
 // Se define la matriz de juego
 	int matriz[32][8] = { 0 };
 	inicio(matriz);
 	puntos = 0; //Score
+
 // Se definen los 4 puntos que componen cada figura
 	int punto1[1][2];
 	int punto2[1][2];
@@ -477,7 +456,7 @@ int main(void) {
 // While del juego
 	while (1) {
 		//delay
-		int delay = 500-(10 * puntos);
+		int delay = 500 - (15 * puntos);
 		//Tetris
 		for (int i = 31; i >= 0; i--) {
 			if (matriz[i][0] == 1 && matriz[i][1] == 1 && matriz[i][2] == 1
@@ -501,7 +480,6 @@ int main(void) {
 			writeChar(&handlerCommTerminal, rxData);
 			switch (rxData) {
 			case 'k': {
-
 				sprintf(bufferData, "puntos = %u \n", puntos);
 				writeMsg(&handlerCommTerminal, bufferData);
 
@@ -545,7 +523,7 @@ int main(void) {
 				}
 				//NO puede hacer nada hasta que no entre en la matriz la figura completa
 				if (estado == 0 || punto1[0][0] <= 1) {
-					if (joystick[1] < 100 && punto2[0][1] > 0
+					if (joystick[1] < 700 && punto2[0][1] > 0
 							&& punto1[0][0] > 1) {
 						if ((matriz[punto1[0][0]][punto1[0][1] - 1] == 0)
 								&& (matriz[punto2[0][0]][punto2[0][1] - 1] == 0)) {//Verificación de que pa donde se vaya a mover esté vacio
@@ -615,7 +593,7 @@ int main(void) {
 						giro = 0;
 					}
 					if (giro == 0) {
-						if (joystick[1] < 100 && punto2[0][1] > 0
+						if (joystick[1] < 700 && punto2[0][1] > 0
 								&& punto1[0][0] > 1) {
 							if ((matriz[punto1[0][0]][punto1[0][1] - 1] == 0)
 									&& (matriz[punto2[0][0]][punto2[0][1] - 1]
@@ -692,7 +670,7 @@ int main(void) {
 						giro = 0;
 					}
 					if (giro == 0) {
-						if (joystick[1] < 100 && punto1[0][1] > 0
+						if (joystick[1] < 700 && punto1[0][1] > 0
 								&& punto1[0][0] > 1) {
 							if ((matriz[punto1[0][0]][punto1[0][1] - 1] == 0)
 									&& (matriz[punto4[0][0]][punto4[0][1] - 1]
@@ -764,7 +742,7 @@ int main(void) {
 						giro = 0;
 					}
 					if (giro == 0) {
-						if (joystick[1] < 100 && punto1[0][1] > 0
+						if (joystick[1] < 700 && punto1[0][1] > 0
 								&& punto1[0][0] > 1) {
 							if ((matriz[punto1[0][0]][punto1[0][1] - 1] == 0)
 									&& (matriz[punto3[0][0]][punto3[0][1] - 1]
@@ -870,7 +848,7 @@ int main(void) {
 						|| punto3[0][0] >= 31 || punto4[0][0] >= 31) {
 					break;
 				} else if (estado == 0 || punto1[0][0] <= 2) {
-					if (joystick[1] < 100 && punto1[0][1] > 0
+					if (joystick[1] < 700 && punto1[0][1] > 0
 							&& punto1[0][0] > 2) {
 						if ((matriz[punto1[0][0]][punto1[0][1] - 1] == 0)
 								&& (matriz[punto2[0][0]][punto2[0][1] - 1] == 0)
@@ -951,7 +929,7 @@ int main(void) {
 						giro = 0;
 					}
 					if (giro == 0) {
-						if (joystick[1] < 100 && punto1[0][1] > 0) {
+						if (joystick[1] < 700 && punto1[0][1] > 0) {
 							if (matriz[punto1[0][0]][punto1[0][1] - 1] == 0) {
 								delay_ms(200);
 								matriz[punto1[0][0]][punto1[0][1]] = 0;
@@ -1056,7 +1034,7 @@ int main(void) {
 						|| punto3[0][0] >= 31 || punto4[0][0] >= 31) {
 					break;
 				} else if (estado == 0 || punto1[0][0] <= 1) {
-					if (joystick[1] < 100 && punto1[0][1] > 0
+					if (joystick[1] < 700 && punto1[0][1] > 0
 							&& punto1[0][0] > 1) {
 						if ((matriz[punto1[0][0]][punto1[0][1] - 1] == 0)
 								&& (matriz[punto3[0][0]][punto3[0][1] - 1] == 0)
@@ -1138,7 +1116,7 @@ int main(void) {
 						giro = 0;
 					}
 					if (giro == 0) {
-						if (joystick[1] < 100 && punto1[0][1] > 0
+						if (joystick[1] < 700 && punto1[0][1] > 0
 								&& punto1[0][0] > 1) {
 							if ((matriz[punto1[0][0]][punto1[0][1] - 1] == 0)
 									&& (matriz[punto4[0][0]][punto4[0][1] - 1]
@@ -1221,7 +1199,7 @@ int main(void) {
 						giro = 0;
 					}
 					if (giro == 0) {
-						if (joystick[1] < 100 && punto1[0][1] > 0
+						if (joystick[1] < 700 && punto1[0][1] > 0
 								&& punto1[0][0] > 1) {
 							if ((matriz[punto1[0][0]][punto1[0][1] - 1] == 0)
 									&& (matriz[punto3[0][0]][punto3[0][1] - 1]
@@ -1307,7 +1285,7 @@ int main(void) {
 						giro = 0;
 					}
 					if (giro == 0) {
-						if (joystick[1] < 100 && punto2[0][1] > 0
+						if (joystick[1] < 700 && punto2[0][1] > 0
 								&& punto1[0][0] > 1) {
 							if ((matriz[punto1[0][0]][punto1[0][1] - 1] == 0)
 									&& (matriz[punto2[0][0]][punto2[0][1] - 1]
@@ -1419,7 +1397,7 @@ int main(void) {
 						|| punto3[0][0] >= 31 || punto4[0][0] >= 31) {
 					break;
 				} else if (estado == 0 || punto1[0][0] <= 1) {
-					if (joystick[1] < 100 && punto1[0][1] > 0
+					if (joystick[1] < 700 && punto1[0][1] > 0
 							&& punto1[0][0] > 1) {
 						if ((matriz[punto1[0][0]][punto1[0][1] - 1] == 0)
 								&& (matriz[punto3[0][0]][punto3[0][1] - 1] == 0)
@@ -1499,7 +1477,7 @@ int main(void) {
 						giro = 0;
 					}
 					if (giro == 0) {
-						if (joystick[1] < 100 && punto1[0][1] > 0
+						if (joystick[1] < 700 && punto1[0][1] > 0
 								&& punto1[0][0] > 1) {
 							if ((matriz[punto1[0][0]][punto1[0][1] - 1] == 0)
 									&& (matriz[punto4[0][0]][punto4[0][1] - 1]
@@ -1580,7 +1558,7 @@ int main(void) {
 						giro = 0;
 					}
 					if (giro == 0) {
-						if (joystick[1] < 100 && punto1[0][1] > 0
+						if (joystick[1] < 700 && punto1[0][1] > 0
 								&& punto2[0][1] > 0) {
 							if ((matriz[punto1[0][0]][punto1[0][1] - 1] == 0)
 									&& (matriz[punto2[0][0]][punto2[0][1] - 1]
@@ -1668,7 +1646,7 @@ int main(void) {
 						giro = 0;
 					}
 					if (giro == 0) {
-						if (joystick[1] < 100 && punto1[0][1] > 0
+						if (joystick[1] < 700 && punto1[0][1] > 0
 								&& punto1[0][0] > 1) {
 							if ((matriz[punto1[0][0]][punto1[0][1] - 1] == 0)
 									&& (matriz[punto4[0][0]][punto4[0][1] - 1]
@@ -1772,7 +1750,7 @@ int main(void) {
 			punto4[0][0] = -3;
 			punto4[0][1] = 4;
 			while (1) {
-				if (joystick[1] < 100 && punto1[0][0] > 1 && punto1[0][1] > 0) {
+				if (joystick[1] < 700 && punto1[0][0] > 1 && punto1[0][1] > 0) {
 					if ((matriz[punto1[0][0]][punto1[0][1] - 1] == 0)
 							&& (matriz[punto3[0][0]][punto3[0][1] - 1] == 0)) {
 						delay_ms(200);
@@ -1848,7 +1826,7 @@ int main(void) {
 						|| punto3[0][0] >= 31 || punto4[0][0] >= 31) {
 					break;
 				} else if (estado == 0 || punto1[0][0] <= 1) {
-					if (joystick[1] < 100 && punto1[0][1] > 0
+					if (joystick[1] < 700 && punto1[0][1] > 0
 							&& punto1[0][0] > 1) {
 						if ((matriz[punto1[0][0]][punto1[0][1] - 1] == 0)
 								&& (matriz[punto4[0][0]][punto4[0][1] - 1] == 0)) {
@@ -1922,7 +1900,7 @@ int main(void) {
 						giro = 0;
 					}
 					if (giro == 0) {
-						if (joystick[1] < 100 && punto1[0][1] > 0
+						if (joystick[1] < 700 && punto1[0][1] > 0
 								&& punto2[0][1] > 0) {
 							if (matriz[punto2[0][0]][punto2[0][1] - 1] == 0) {
 								delay_ms(200);
@@ -2028,7 +2006,7 @@ int main(void) {
 						|| punto3[0][0] >= 31 || punto4[0][0] >= 31) {
 					break;
 				} else if (estado == 0 || punto1[0][0] <= 1) {
-					if (joystick[1] < 100 && punto3[0][1] > 0
+					if (joystick[1] < 700 && punto3[0][1] > 0
 							&& punto1[0][0] > 1) {
 						if ((matriz[punto1[0][0]][punto1[0][1] - 1] == 0)
 								&& (matriz[punto3[0][0]][punto3[0][1] - 1] == 0)) {
@@ -2100,7 +2078,7 @@ int main(void) {
 						giro = 0;
 					}
 					if (giro == 0) {
-						if (joystick[1] < 100 && punto1[0][1] > 0
+						if (joystick[1] < 700 && punto1[0][1] > 0
 								&& punto1[0][1] > 0) {
 							if (matriz[punto1[0][0]][punto1[0][1] - 1] == 0
 									&& matriz[punto3[0][0]][punto3[0][1] - 1]

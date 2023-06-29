@@ -31,59 +31,55 @@
 #include "AdcDriver.h"
 #include "Tetris.h"
 
+/****************************************** Definición de los diferentes handlers *********************************/
 GPIO_Handler_t handlerSpiSCLK = { 0 };
 GPIO_Handler_t handlerSpiMISO = { 0 };
 GPIO_Handler_t handlerSpiMOSI = { 0 };
-GPIO_Handler_t handlerSpiSS = { 0 };
+GPIO_Handler_t handlerSpiSS   = { 0 };
 BasicTimer_Handler_t handlerStateOKTimer = { 0 };
-BasicTimer_Handler_t handlerTimerRandom = { 0 };
+BasicTimer_Handler_t handlerTimerRandom  = { 0 };
 SPI_Handler_t handlerSpiPort = { 0 };
-/***************************************** Definiciones para ADC *****************************************/
+GPIO_Handler_t handlerPinTX  = { 0 };
+GPIO_Handler_t handlerPinRX  = { 0 };
+USART_Handler_t handlerCommTerminal = { 0 };
+PWM_Handler_t handlerPWM     = { 0 };
+GPIO_Handler_t handlerLedOK  = { 0 };
+GPIO_Handler_t hnadlerPinPWM = { 0 };
+GPIO_Handler_t handlerSW     = { 0 };
+BasicTimer_Handler_t handlerDelay = { 0 };
+
+/**************************************** Definiciones para el joysctick*****************************************/
 ADC_Config_t adcConfig = { 0 };
 int joystick[2] = { 0 };
-int axisX = 0;
-int axisY = 0;
 int SW = 0;
 uint16_t adcData = 0;
 uint8_t aux = 0;
 uint8_t adcIsComplete = RESET;
+/*****************************************************************************************************************/
+EXTI_Config_t extiButton = { 0 }; // Interrupción externa
 
-GPIO_Handler_t handlerPinTX = { 0 };
-GPIO_Handler_t handlerPinRX = { 0 };
-USART_Handler_t handlerCommTerminal = { 0 };
-PWM_Handler_t handlerPWM = { 0 };
-GPIO_Handler_t handlerLedOK = { 0 };
-GPIO_Handler_t hnadlerPinPWM = { 0 };
-GPIO_Handler_t handlerSW = { 0 };
-EXTI_Config_t extiButton = { 0 };
-
-uint32_t getCounterDelay(void);
-BasicTimer_Handler_t handlerDelay = { 0 };
-uint32_t counterDelay = 0;
-uint8_t var = { 0 };
-uint16_t memoria[8];
-
-uint8_t myVariable = 42;
-uint8_t *ptr = &myVariable;
+// Definiciones para el Random
 uint16_t randomSeed;
 uint16_t randomNumber;
 
+// Definiciones para la lógica del juego
 uint8_t estado;
 uint8_t puntos;
 uint8_t giro;
 uint32_t counterButton = 0;
 
-uint8_t col = 0;
-uint8_t save = 0;
-uint8_t flag = 0;
-uint8_t rxData = 0; // Para valores random
+// Para comunicación usart
+uint8_t rxData = 0;
 char bufferData[128] = { 0 };
-void tetris(int matriz[32][8], uint8_t fila);
-int test = 0;
+
 /* Definición de las funciones del programa a utilizar */
+void tetris(int matriz[32][8], uint8_t fila);
+void score(uint8_t puntos);
 void inicio(int matriz[32][8]);
+int test = 0;
+
 void initSystem(void) {
-//	config_SysTick_ms(200);
+
 	handlerLedOK.pGPIOx = GPIOA;
 	handlerLedOK.GPIO_PinConfig.GPIO_PinNumber = PIN_5;
 	handlerLedOK.GPIO_PinConfig.GPIO_PinMode = GPIO_MODE_OUT;
@@ -101,13 +97,12 @@ void initSystem(void) {
 	handlerStateOKTimer.TIMx_Config.TIMx_period = 2500;
 	handlerStateOKTimer.TIMx_Config.TIMx_interruptEnable = ENABLE;
 	BasicTimer_Config(&handlerStateOKTimer);
-
+	/* Configuración ADC*/
 	adcConfig.multiChannels[0] = ADC_CHANNEL_0;
 	adcConfig.multiChannels[1] = ADC_CHANNEL_1;
 	adcConfig.dataAlignment = ADC_ALIGNMENT_RIGHT;
 	adcConfig.resolution = ADC_RESOLUTION_12_BIT;
-	adcConfig.samplingPeriod = ADC_SAMPLING_PERIOD_84_CYCLES
-	;
+	adcConfig.samplingPeriod = ADC_SAMPLING_PERIOD_84_CYCLES;
 	adcConfig.adcEvent = 5;
 	adcConfig.typeEvent = 1;
 	//Se carga la configuración del ADC
@@ -133,6 +128,17 @@ void initSystem(void) {
 
 	GPIO_Config(&hnadlerPinPWM);
 
+	handlerPWM.ptrTIMx = TIM2;
+	handlerPWM.config.channel = PWM_CHANNEL_3;
+	handlerPWM.config.duttyCicle = 33;
+	handlerPWM.config.periodo = 60;
+	handlerPWM.config.prescaler = 100;
+
+	// Activar señal
+	pwm_Config(&handlerPWM);
+	enableOutput(&handlerPWM);
+	startPwmSignal(&handlerPWM);
+
 	/* Configuración del botón, Pin PA9 (SW) */
 	handlerSW.pGPIOx = GPIOA;
 	handlerSW.GPIO_PinConfig.GPIO_PinNumber = PIN_9;
@@ -145,16 +151,6 @@ void initSystem(void) {
 	extiButton.edgeType = EXTERNAL_INTERRUPT_RISING_EDGE;
 	extInt_Config(&extiButton);
 
-	handlerPWM.ptrTIMx = TIM2;
-	handlerPWM.config.channel = PWM_CHANNEL_3;
-	handlerPWM.config.duttyCicle = 33;
-	handlerPWM.config.periodo = 60;
-	handlerPWM.config.prescaler = 100;
-
-	// Activar señal
-	pwm_Config(&handlerPWM);
-	enableOutput(&handlerPWM);
-	startPwmSignal(&handlerPWM);
 }
 
 void Serial_Configuration(void) {
@@ -240,6 +236,7 @@ void SPI_Configuration(void) {
 	handlerSpiPort.SPI_slavePin = handlerSpiSS;
 	spi_config(handlerSpiPort);
 
+	/* Inicialización de la matriz */
 	MatrixLed_writeData(0x09, 0x00); // Desactivar decodificación BCD
 	MatrixLed_writeData(0x09, 0x00); // Desactivar decodificación BCD
 	MatrixLed_writeData(0x09, 0x00); // Desactivar decodificación BCD
@@ -250,15 +247,15 @@ void SPI_Configuration(void) {
 	MatrixLed_writeData(0x0A, 0x00); // Brillo máximo (0x00 a 0x0F)
 	MatrixLed_writeData(0x0A, 0x00); // Brillo máximo (0x00 a 0x0F)
 
-	MatrixLed_writeData(0x0B, 0x07); // Configurar el número de matrices de LED (0x01 a 0x08)
-	MatrixLed_writeData(0x0B, 0x07); // Configurar el número de matrices de LED (0x01 a 0x08)
-	MatrixLed_writeData(0x0B, 0x07); // Configurar el número de matrices de LED (0x01 a 0x08)
-	MatrixLed_writeData(0x0B, 0x07); // Configurar el número de matrices de LED (0x01 a 0x08)
+	MatrixLed_writeData(0x0B, 0x07); // Scan limit. Configurar el número de matrices de LED (0x01 a 0x08)
+	MatrixLed_writeData(0x0B, 0x07); // Scan limit. Configurar el número de matrices de LED (0x01 a 0x08)
+	MatrixLed_writeData(0x0B, 0x07); // Scan limit. Configurar el número de matrices de LED (0x01 a 0x08)
+	MatrixLed_writeData(0x0B, 0x07); // Scan limit. Configurar el número de matrices de LED (0x01 a 0x08)
 
-	MatrixLed_writeData(0x0C, 0x01); // Encender chip
-	MatrixLed_writeData(0x0C, 0x01); // Encender chip
-	MatrixLed_writeData(0x0C, 0x01); // Encender chip
-	MatrixLed_writeData(0x0C, 0x01); // Encender chip
+	MatrixLed_writeData(0x0C, 0x01); // Shutdown
+	MatrixLed_writeData(0x0C, 0x01); // Shutdown
+	MatrixLed_writeData(0x0C, 0x01); // Shutdown
+	MatrixLed_writeData(0x0C, 0x01); // Shutdown
 
 	MatrixLed_writeData(0x0F, 0x00); // Desactivar prueba de visualización
 	MatrixLed_writeData(0x0F, 0x00); // Desactivar prueba de visualización
@@ -395,26 +392,6 @@ uint8_t MatrixLedMod4(uint8_t digit, uint8_t seg) {
 	return seg;
 }
 
-void timerDelay_Configuration(void) {
-
-	/*
-	 * Configuramos el timer
-	 */
-	handlerDelay.ptrTIMx = TIM5;
-	handlerDelay.TIMx_Config.TIMx_mode = BTIMER_MODE_UP;
-	handlerDelay.TIMx_Config.TIMx_speed = BTIMER_SPEED_10us;
-	handlerDelay.TIMx_Config.TIMx_period = 100;
-	BasicTimer_Config(&handlerDelay);
-}
-uint32_t getCounterDelay(void) {
-
-	return counterDelay;
-}
-
-void displayNumber(uint8_t matrix, uint8_t number) {
-	MatrixLed_writeData(matrix, number);
-}
-
 void clean(void) {
 	MatrixLedMod1(0x01, 0b00000000);
 	MatrixLedMod1(0x02, 0b00000000);
@@ -456,7 +433,6 @@ void clean(void) {
 
 int main(void) {
 
-
 	initSystem();
 	config_SysTick_ms(0);
 	SPI_Configuration();
@@ -465,34 +441,33 @@ int main(void) {
 	adcComplete_Callback();
 	srand(randomSeed);
 
+// Se define la matriz de juego
 	int matriz[32][8] = { 0 };
 	inicio(matriz);
-	puntos = 0;
-	//delay
-	int delay = 500-(10 * puntos);
+	puntos = 0; //Score
+
+// Se definen los 4 puntos que componen cada figura
 	int punto1[1][2];
 	int punto2[1][2];
 	int punto3[1][2];
 	int punto4[1][2];
-
-	matriz[30][3] = 1;
-	matriz[30][4] = 1;
-	matriz[31][3] = 1;
-	matriz[31][4] = 1;
-
-//	traducir(matriz);
-
-
+// While del juego
 	while (1) {
-		//Tetris
-
+		//delay
+		int delay = 500 - (15 * puntos);
+		/*Tetris: Lo primero que se hace al final de cada ronda es verificar que no haya ninguna fila completa*/
 		for (int i = 31; i >= 0; i--) {
 			if (matriz[i][0] == 1 && matriz[i][1] == 1 && matriz[i][2] == 1
 					&& matriz[i][3] == 1 && matriz[i][4] == 1
 					&& matriz[i][5] == 1 && matriz[i][6] == 1
 					&& matriz[i][7] == 1) {
 				tetris(matriz, i);
-				puntos += 1;
+				puntos += 1; // Sumo un punto al score
+				//Mostrar puntaje
+				clean();
+				score(puntos);
+				clean();
+				//Vuelve a mostrarse la matriz de juego
 				traducir(matriz);
 				delay_ms(500);
 			}
@@ -503,9 +478,8 @@ int main(void) {
 			writeChar(&handlerCommTerminal, rxData);
 			switch (rxData) {
 			case 'k': {
-
 				sprintf(bufferData, "puntos = %u \n", puntos);
-				writeMsg(&handlerCommTerminal, "score \n");
+				writeMsg(&handlerCommTerminal, bufferData);
 
 				break;
 			}
@@ -521,10 +495,12 @@ int main(void) {
 			}
 			rxData = '\0';
 		}
-
+		// Se escoge la figura que aparecerá en la matriz
 		int figura = rand() % 7;
+
 		if (figura == 0) { //Cae T
-			estado = 0;
+			estado = 0; // Estado de giro del SW
+			// Se crean los puntos iniciales de la figura
 			punto1[0][0] = -1;
 			punto1[0][1] = 3;
 			punto2[0][0] = -2;
@@ -536,29 +512,32 @@ int main(void) {
 			while (1) {
 				if (counterButton == 1) { // Interrupción externa del exti del botón SW
 					estado++;
-					giro = 1;
+					giro = 1; // Me indica si la figura ya ha girado o no
 				}
 				counterButton = 0;
+				// Es un control para que las figuras no bajen más del borde inferior de la matriz
 				if (punto1[0][0] >= 31 || punto2[0][0] >= 31
 						|| punto3[0][0] >= 31 || punto4[0][0] >= 31) {
 					break;
 				}
+				//NO puede hacer nada hasta que no entre en la matriz la figura completa
 				if (estado == 0 || punto1[0][0] <= 1) {
-					if (joystick[1] < 100 && punto2[0][1] > 0
+					if (joystick[1] < 700 && punto2[0][1] > 0
 							&& punto1[0][0] > 1) {
 						if ((matriz[punto1[0][0]][punto1[0][1] - 1] == 0)
-								&& (matriz[punto2[0][0]][punto2[0][1] - 1] == 0)) {
+								&& (matriz[punto2[0][0]][punto2[0][1] - 1] == 0)) {//Verificación de que pa donde se vaya a mover esté vacio
 							delay_ms(200);
+							//Se apagan todos los puntos
 							matriz[punto1[0][0]][punto1[0][1]] = 0;
 							matriz[punto2[0][0]][punto2[0][1]] = 0;
 							matriz[punto3[0][0]][punto3[0][1]] = 0;
 							matriz[punto4[0][0]][punto4[0][1]] = 0;
-
+							//Se restan las columnas porque se va a mover a la izquieda
 							punto1[0][1] = punto1[0][1] - 1;
 							punto2[0][1] = punto2[0][1] - 1;
 							punto3[0][1] = punto3[0][1] - 1;
 							punto4[0][1] = punto4[0][1] - 1;
-
+							//Se prenden los nuevos puntos
 							matriz[punto1[0][0]][punto1[0][1]] = 1;
 							matriz[punto2[0][0]][punto2[0][1]] = 1;
 							matriz[punto3[0][0]][punto3[0][1]] = 1;
@@ -590,7 +569,7 @@ int main(void) {
 					} else {
 						int test = movimientoT(punto1, punto2, punto3, punto4,
 								matriz);
-						if (test == 1) {
+						if (test == 1) {//Moviemiento, retorna 1 si sepuede bajar la pieza o cero si no
 							delay_ms(delay);
 							traducir(matriz);
 						} else {
@@ -600,17 +579,20 @@ int main(void) {
 					estado = 0;
 				} else if (estado == 1 && punto1[0][0] > 1) {
 					if (giro == 1
-							&& matriz[punto4[0][0] - 1][punto4[0][1]] == 0) {
+							&& matriz[punto4[0][0] - 1][punto4[0][1]] == 0) {// Se verifica que para donde vaya a girar esté vacio
+						//Se apaga el punto que vaya a girar
 						matriz[punto3[0][0]][punto3[0][1]] = 0;
+						//Se hace el giro y se renombran los puntos
 						punto3[0][0] = punto4[0][0];
 						punto3[0][1] = punto4[0][1];
 						punto4[0][0] = punto4[0][0] - 1;
+						//Encendido del nuevo punto
 						matriz[punto4[0][0]][punto4[0][1]] = 1;
 						traducir(matriz);
 						giro = 0;
 					}
 					if (giro == 0) {
-						if (joystick[1] < 100 && punto2[0][1] > 0
+						if (joystick[1] < 700 && punto2[0][1] > 0
 								&& punto1[0][0] > 1) {
 							if ((matriz[punto1[0][0]][punto1[0][1] - 1] == 0)
 									&& (matriz[punto2[0][0]][punto2[0][1] - 1]
@@ -687,7 +669,7 @@ int main(void) {
 						giro = 0;
 					}
 					if (giro == 0) {
-						if (joystick[1] < 100 && punto1[0][1] > 0
+						if (joystick[1] < 700 && punto1[0][1] > 0
 								&& punto1[0][0] > 1) {
 							if ((matriz[punto1[0][0]][punto1[0][1] - 1] == 0)
 									&& (matriz[punto4[0][0]][punto4[0][1] - 1]
@@ -759,7 +741,7 @@ int main(void) {
 						giro = 0;
 					}
 					if (giro == 0) {
-						if (joystick[1] < 100 && punto1[0][1] > 0
+						if (joystick[1] < 700 && punto1[0][1] > 0
 								&& punto1[0][0] > 1) {
 							if ((matriz[punto1[0][0]][punto1[0][1] - 1] == 0)
 									&& (matriz[punto3[0][0]][punto3[0][1] - 1]
@@ -865,7 +847,7 @@ int main(void) {
 						|| punto3[0][0] >= 31 || punto4[0][0] >= 31) {
 					break;
 				} else if (estado == 0 || punto1[0][0] <= 2) {
-					if (joystick[1] < 100 && punto1[0][1] > 0
+					if (joystick[1] < 700 && punto1[0][1] > 0
 							&& punto1[0][0] > 2) {
 						if ((matriz[punto1[0][0]][punto1[0][1] - 1] == 0)
 								&& (matriz[punto2[0][0]][punto2[0][1] - 1] == 0)
@@ -946,7 +928,7 @@ int main(void) {
 						giro = 0;
 					}
 					if (giro == 0) {
-						if (joystick[1] < 100 && punto1[0][1] > 0) {
+						if (joystick[1] < 700 && punto1[0][1] > 0) {
 							if (matriz[punto1[0][0]][punto1[0][1] - 1] == 0) {
 								delay_ms(200);
 								matriz[punto1[0][0]][punto1[0][1]] = 0;
@@ -1051,7 +1033,7 @@ int main(void) {
 						|| punto3[0][0] >= 31 || punto4[0][0] >= 31) {
 					break;
 				} else if (estado == 0 || punto1[0][0] <= 1) {
-					if (joystick[1] < 100 && punto1[0][1] > 0
+					if (joystick[1] < 700 && punto1[0][1] > 0
 							&& punto1[0][0] > 1) {
 						if ((matriz[punto1[0][0]][punto1[0][1] - 1] == 0)
 								&& (matriz[punto3[0][0]][punto3[0][1] - 1] == 0)
@@ -1133,7 +1115,7 @@ int main(void) {
 						giro = 0;
 					}
 					if (giro == 0) {
-						if (joystick[1] < 100 && punto1[0][1] > 0
+						if (joystick[1] < 700 && punto1[0][1] > 0
 								&& punto1[0][0] > 1) {
 							if ((matriz[punto1[0][0]][punto1[0][1] - 1] == 0)
 									&& (matriz[punto4[0][0]][punto4[0][1] - 1]
@@ -1216,7 +1198,7 @@ int main(void) {
 						giro = 0;
 					}
 					if (giro == 0) {
-						if (joystick[1] < 100 && punto1[0][1] > 0
+						if (joystick[1] < 700 && punto1[0][1] > 0
 								&& punto1[0][0] > 1) {
 							if ((matriz[punto1[0][0]][punto1[0][1] - 1] == 0)
 									&& (matriz[punto3[0][0]][punto3[0][1] - 1]
@@ -1302,7 +1284,7 @@ int main(void) {
 						giro = 0;
 					}
 					if (giro == 0) {
-						if (joystick[1] < 100 && punto2[0][1] > 0
+						if (joystick[1] < 700 && punto2[0][1] > 0
 								&& punto1[0][0] > 1) {
 							if ((matriz[punto1[0][0]][punto1[0][1] - 1] == 0)
 									&& (matriz[punto2[0][0]][punto2[0][1] - 1]
@@ -1414,7 +1396,7 @@ int main(void) {
 						|| punto3[0][0] >= 31 || punto4[0][0] >= 31) {
 					break;
 				} else if (estado == 0 || punto1[0][0] <= 1) {
-					if (joystick[1] < 100 && punto1[0][1] > 0
+					if (joystick[1] < 700 && punto1[0][1] > 0
 							&& punto1[0][0] > 1) {
 						if ((matriz[punto1[0][0]][punto1[0][1] - 1] == 0)
 								&& (matriz[punto3[0][0]][punto3[0][1] - 1] == 0)
@@ -1494,7 +1476,7 @@ int main(void) {
 						giro = 0;
 					}
 					if (giro == 0) {
-						if (joystick[1] < 100 && punto1[0][1] > 0
+						if (joystick[1] < 700 && punto1[0][1] > 0
 								&& punto1[0][0] > 1) {
 							if ((matriz[punto1[0][0]][punto1[0][1] - 1] == 0)
 									&& (matriz[punto4[0][0]][punto4[0][1] - 1]
@@ -1575,7 +1557,7 @@ int main(void) {
 						giro = 0;
 					}
 					if (giro == 0) {
-						if (joystick[1] < 100 && punto1[0][1] > 0
+						if (joystick[1] < 700 && punto1[0][1] > 0
 								&& punto2[0][1] > 0) {
 							if ((matriz[punto1[0][0]][punto1[0][1] - 1] == 0)
 									&& (matriz[punto2[0][0]][punto2[0][1] - 1]
@@ -1663,7 +1645,7 @@ int main(void) {
 						giro = 0;
 					}
 					if (giro == 0) {
-						if (joystick[1] < 100 && punto1[0][1] > 0
+						if (joystick[1] < 700 && punto1[0][1] > 0
 								&& punto1[0][0] > 1) {
 							if ((matriz[punto1[0][0]][punto1[0][1] - 1] == 0)
 									&& (matriz[punto4[0][0]][punto4[0][1] - 1]
@@ -1767,7 +1749,7 @@ int main(void) {
 			punto4[0][0] = -3;
 			punto4[0][1] = 4;
 			while (1) {
-				if (joystick[1] < 100 && punto1[0][0] > 1 && punto1[0][1] > 0) {
+				if (joystick[1] < 700 && punto1[0][0] > 1 && punto1[0][1] > 0) {
 					if ((matriz[punto1[0][0]][punto1[0][1] - 1] == 0)
 							&& (matriz[punto3[0][0]][punto3[0][1] - 1] == 0)) {
 						delay_ms(200);
@@ -1843,7 +1825,7 @@ int main(void) {
 						|| punto3[0][0] >= 31 || punto4[0][0] >= 31) {
 					break;
 				} else if (estado == 0 || punto1[0][0] <= 1) {
-					if (joystick[1] < 100 && punto1[0][1] > 0
+					if (joystick[1] < 700 && punto1[0][1] > 0
 							&& punto1[0][0] > 1) {
 						if ((matriz[punto1[0][0]][punto1[0][1] - 1] == 0)
 								&& (matriz[punto4[0][0]][punto4[0][1] - 1] == 0)) {
@@ -1917,7 +1899,7 @@ int main(void) {
 						giro = 0;
 					}
 					if (giro == 0) {
-						if (joystick[1] < 100 && punto1[0][1] > 0
+						if (joystick[1] < 700 && punto1[0][1] > 0
 								&& punto2[0][1] > 0) {
 							if (matriz[punto2[0][0]][punto2[0][1] - 1] == 0) {
 								delay_ms(200);
@@ -2023,7 +2005,7 @@ int main(void) {
 						|| punto3[0][0] >= 31 || punto4[0][0] >= 31) {
 					break;
 				} else if (estado == 0 || punto1[0][0] <= 1) {
-					if (joystick[1] < 100 && punto3[0][1] > 0
+					if (joystick[1] < 700 && punto3[0][1] > 0
 							&& punto1[0][0] > 1) {
 						if ((matriz[punto1[0][0]][punto1[0][1] - 1] == 0)
 								&& (matriz[punto3[0][0]][punto3[0][1] - 1] == 0)) {
@@ -2095,7 +2077,7 @@ int main(void) {
 						giro = 0;
 					}
 					if (giro == 0) {
-						if (joystick[1] < 100 && punto1[0][1] > 0
+						if (joystick[1] < 700 && punto1[0][1] > 0
 								&& punto1[0][1] > 0) {
 							if (matriz[punto1[0][0]][punto1[0][1] - 1] == 0
 									&& matriz[punto3[0][0]][punto3[0][1] - 1]
@@ -2182,7 +2164,7 @@ int main(void) {
 			}
 
 		}
-		//Fin del juego
+		//Fin del juego, se verifica que la fila de arriba esté vacía, o si no se finaliza el juego
 		if (matriz[0][0] || matriz[0][1] || matriz[0][2] || matriz[0][3]
 				|| matriz[0][4] || matriz[0][5] || matriz[0][6]
 				|| matriz[0][7]) {
@@ -2193,7 +2175,7 @@ int main(void) {
 	}
 	return 0;
 }
-
+/* Función para el movimiento tetris */
 void tetris(int matriz[32][8], uint8_t fila) {
 	for (int i = 0; i < 8; i++) {
 		matriz[fila][i] = 0;
@@ -2308,6 +2290,336 @@ void inicio(int matriz[32][8]){
 		}
 	}
 }
+void score(uint8_t puntos){
+	int puntaje[32][8] = {0};
+
+	//score
+	// S
+	puntaje[0][3] = 1;
+	puntaje[0][4] = 1;
+	puntaje[1][2] = 1;
+	puntaje[1][3] = 1;
+	puntaje[2][4] = 1;
+	puntaje[3][2] = 1;
+	puntaje[3][4] = 1;
+	puntaje[3][3] = 1;
+	puntaje[3][2] = 1;
+
+	//C
+	puntaje[5][3] = 1;
+	puntaje[5][4] = 1;
+	puntaje[5][2] = 1;
+	puntaje[6][2] = 1;
+	puntaje[7][2] = 1;
+	puntaje[8][2] = 1;
+	puntaje[8][3] = 1;
+	puntaje[8][4] = 1;
+	// O
+	puntaje[9][3] = 1;
+	puntaje[9][4] = 1;
+	puntaje[10][2] = 1;
+	puntaje[10][5] = 1;
+	puntaje[11][2] = 1;
+	puntaje[11][5] = 1;
+	puntaje[12][3] = 1;
+	puntaje[12][4] = 1;
+	//R
+	puntaje[13][2] = 1;
+	puntaje[13][3] = 1;
+	puntaje[13][4] = 1;
+	puntaje[14][2] = 1;
+	puntaje[14][4] = 1;
+	puntaje[15][2] = 1;
+	puntaje[15][3] = 1;
+	puntaje[16][2] = 1;
+	puntaje[16][4] = 1;
+	//E
+	puntaje[18][2] = 1;
+	puntaje[18][3] = 1;
+	puntaje[18][4] = 1;
+	puntaje[19][2] = 1;
+	puntaje[19][3] = 1;
+	puntaje[19][4] = 1;
+	puntaje[20][2] = 1;
+	puntaje[21][2] = 1;
+	puntaje[21][3] = 1;
+	puntaje[21][4] = 1;
+
+	int decenas = puntos/10;
+	int unidades = puntos%10;
+
+	if(decenas == 0){
+		puntaje[25][0]=1;
+		puntaje[25][1]=1;
+		puntaje[25][2]=1;
+		puntaje[26][0]=1;
+		puntaje[27][0]=1;
+		puntaje[28][0]=1;
+		puntaje[29][0]=1;
+		puntaje[30][0]=1;
+		puntaje[30][1]=1;
+		puntaje[30][2]=1;
+		puntaje[29][2]=1;
+		puntaje[28][2]=1;
+		puntaje[27][2]=1;
+		puntaje[26][2]=1;
+	}
+	if(decenas == 1){
+		puntaje[25][1]=1;
+		puntaje[26][0]=1;
+		puntaje[26][1]=1;
+		puntaje[27][1]=1;
+		puntaje[28][1]=1;
+		puntaje[29][1]=1;
+		puntaje[30][0]=1;
+		puntaje[30][1]=1;
+		puntaje[30][2]=1;
+
+	}
+	if(decenas == 2){
+		puntaje[25][1]=1;
+		puntaje[26][0]=1;
+		puntaje[26][2]=1;
+		puntaje[27][2]=1;
+		puntaje[28][1]=1;
+		puntaje[29][0]=1;
+		puntaje[30][0]=1;
+		puntaje[30][1]=1;
+		puntaje[30][2]=1;
+	}
+	if(decenas == 3){
+		puntaje[25][0]=1;
+		puntaje[25][1]=1;
+		puntaje[25][2]=1;
+		puntaje[26][2]=1;
+		puntaje[27][2]=1;
+		puntaje[28][2]=1;
+		puntaje[29][2]=1;
+		puntaje[30][2]=1;
+		puntaje[30][1]=1;
+		puntaje[30][0]=1;
+		puntaje[27][1]=1;
+		puntaje[27][0]=1;
+	}
+	if(decenas == 4){
+		puntaje[25][0]=1;
+		puntaje[25][2]=1;
+		puntaje[26][0]=1;
+		puntaje[27][0]=1;
+		puntaje[27][1]=1;
+		puntaje[26][2]=1;
+		puntaje[27][2]=1;
+		puntaje[28][2]=1;
+		puntaje[29][2]=1;
+		puntaje[30][2]=1;
+	}
+	if(decenas == 5){
+		puntaje[25][0]=1;
+		puntaje[25][1]=1;
+		puntaje[25][2]=1;
+		puntaje[26][0]=1;
+		puntaje[27][1]=1;
+		puntaje[28][2]=1;
+		puntaje[29][2]=1;
+		puntaje[30][1]=1;
+		puntaje[30][0]=1;
+	}
+	if(decenas == 6){
+		puntaje[25][0]=1;
+		puntaje[25][1]=1;
+		puntaje[25][2]=1;
+		puntaje[26][0]=1;
+		puntaje[27][0]=1;
+		puntaje[28][0]=1;
+		puntaje[28][1]=1;
+		puntaje[28][2]=1;
+		puntaje[29][0]=1;
+		puntaje[29][2]=1;
+		puntaje[30][1]=1;
+		puntaje[30][0]=1;
+		puntaje[30][2]=1;
+	}
+	if(decenas == 7){
+		puntaje[25][0]=1;
+		puntaje[25][1]=1;
+		puntaje[25][2]=1;
+		puntaje[26][2]=1;
+		puntaje[27][2]=1;
+		puntaje[28][2]=1;
+		puntaje[28][1]=1;
+		puntaje[28][0]=1;
+		puntaje[29][2]=1;
+		puntaje[30][2]=1;
+	}
+	if(decenas == 8){
+		puntaje[25][0]=1;
+		puntaje[25][1]=1;
+		puntaje[25][2]=1;
+		puntaje[26][0]=1;
+		puntaje[26][2]=1;
+		puntaje[27][0]=1;
+		puntaje[27][1]=1;
+		puntaje[27][2]=1;
+		puntaje[28][0]=1;
+		puntaje[28][2]=1;
+		puntaje[29][0]=1;
+		puntaje[29][2]=1;
+		puntaje[30][0]=1;
+		puntaje[30][1]=1;
+		puntaje[30][2]=1;
+	}
+	if(decenas == 9){
+		puntaje[25][0]=1;
+		puntaje[25][1]=1;
+		puntaje[25][2]=1;
+		puntaje[26][0]=1;
+		puntaje[26][2]=1;
+		puntaje[27][0]=1;
+		puntaje[27][1]=1;
+		puntaje[27][2]=1;
+		puntaje[28][2]=1;
+		puntaje[29][2]=1;
+		puntaje[30][0]=1;
+		puntaje[30][1]=1;
+		puntaje[30][2]=1;
+	}
+	if(unidades == 0){
+		puntaje[25][5]=1;
+		puntaje[25][6]=1;
+		puntaje[25][7]=1;
+		puntaje[26][5]=1;
+		puntaje[27][5]=1;
+		puntaje[28][5]=1;
+		puntaje[29][5]=1;
+		puntaje[30][5]=1;
+		puntaje[26][7]=1;
+		puntaje[27][7]=1;
+		puntaje[28][7]=1;
+		puntaje[29][7]=1;
+		puntaje[30][6]=1;
+		puntaje[30][7]=1;
+	}
+	if(unidades == 1){
+		puntaje[25][6]=1;
+		puntaje[26][5]=1;
+		puntaje[26][6]=1;
+		puntaje[27][6]=1;
+		puntaje[28][6]=1;
+		puntaje[29][6]=1;
+		puntaje[30][5]=1;
+		puntaje[30][6]=1;
+		puntaje[30][7]=1;
+	}
+	if(unidades == 2){
+		puntaje[25][6]=1;
+		puntaje[26][5]=1;
+		puntaje[26][7]=1;
+		puntaje[27][7]=1;
+		puntaje[28][6]=1;
+		puntaje[29][5]=1;
+		puntaje[30][5]=1;
+		puntaje[30][6]=1;
+		puntaje[30][7]=1;
+	}
+	if(unidades == 3){
+		puntaje[25][5]=1;
+		puntaje[25][6]=1;
+		puntaje[25][7]=1;
+		puntaje[26][7]=1;
+		puntaje[27][7]=1;
+		puntaje[28][7]=1;
+		puntaje[29][7]=1;
+		puntaje[30][7]=1;
+		puntaje[30][6]=1;
+		puntaje[30][5]=1;
+		puntaje[27][6]=1;
+		puntaje[27][5]=1;
+	}
+	if(unidades == 4){
+		puntaje[25][5]=1;
+		puntaje[25][7]=1;
+		puntaje[26][5]=1;
+		puntaje[27][5]=1;
+		puntaje[27][6]=1;
+		puntaje[26][7]=1;
+		puntaje[27][7]=1;
+		puntaje[28][7]=1;
+		puntaje[29][7]=1;
+		puntaje[30][7]=1;
+	}
+	if(unidades == 5){
+		puntaje[25][5]=1;
+		puntaje[25][6]=1;
+		puntaje[25][7]=1;
+		puntaje[26][5]=1;
+		puntaje[27][6]=1;
+		puntaje[28][7]=1;
+		puntaje[29][7]=1;
+		puntaje[30][6]=1;
+		puntaje[30][5]=1;
+	}
+	if(unidades == 6){
+		puntaje[25][5]=1;
+		puntaje[25][6]=1;
+		puntaje[25][7]=1;
+		puntaje[26][5]=1;
+		puntaje[27][5]=1;
+		puntaje[28][5]=1;
+		puntaje[28][6]=1;
+		puntaje[28][7]=1;
+		puntaje[29][5]=1;
+		puntaje[29][7]=1;
+		puntaje[30][5]=1;
+		puntaje[30][6]=1;
+		puntaje[30][7]=1;
+	}
+	if(unidades == 7){
+		puntaje[25][5]=1;
+		puntaje[25][6]=1;
+		puntaje[25][7]=1;
+		puntaje[26][7]=1;
+		puntaje[27][7]=1;
+		puntaje[28][7]=1;
+		puntaje[28][6]=1;
+		puntaje[28][5]=1;
+		puntaje[29][7]=1;
+		puntaje[30][7]=1;
+	}
+	if(unidades == 8){
+		puntaje[25][5]=1;
+		puntaje[25][6]=1;
+		puntaje[25][7]=1;
+		puntaje[26][5]=1;
+		puntaje[26][7]=1;
+		puntaje[27][5]=1;
+		puntaje[27][6]=1;
+		puntaje[27][7]=1;
+		puntaje[28][5]=1;
+		puntaje[28][7]=1;
+		puntaje[29][5]=1;
+		puntaje[29][7]=1;
+		puntaje[30][5]=1;
+		puntaje[30][6]=1;
+		puntaje[30][7]=1;
+	}
+	if(unidades == 9){
+		puntaje[25][5]=1;
+		puntaje[25][6]=1;
+		puntaje[25][7]=1;
+		puntaje[26][5]=1;
+		puntaje[26][7]=1;
+		puntaje[27][5]=1;
+		puntaje[27][6]=1;
+		puntaje[27][7]=1;
+		puntaje[28][7]=1;
+		puntaje[29][7]=1;
+		puntaje[30][7]=1;
+		puntaje[30][6]=1;
+		puntaje[30][5]=1;
+	}
+	traducir(puntaje);
+	delay_ms(3000);
+}
 void traducir(int matriz[32][8]) {
 	int matriz1[8][8] = { 0 };
 	int matriz2[8][8] = { 0 };
@@ -2335,7 +2647,7 @@ void traducir(int matriz[32][8]) {
 			}
 		}
 	}
-
+	// Traducir columnas a números de las matrices
 	for (int i = 0; i < 8; i++) {
 		uint8_t aux = 0;
 		for (int j = 0; j < 8; j++) {
